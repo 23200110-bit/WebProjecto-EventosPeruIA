@@ -38,7 +38,7 @@ matriz el carácter de una rúbrica adicional del profesor.
 
 ## Corrección de alcance — Semana 12
 
-El candidato inicial de ALICE queda sustituido. Esta versión sigue las capas y
+El candidato inicial queda sustituido. Esta versión sigue las capas y
 JWT del repositorio del profesor. No se entrega el sistema de rate limit ni de
 revalidación de tokens por petición. Las pruebas de ingeniería quedan fuera del
 proyecto del alumno. No se requiere aprobar ni publicar la rama anterior.

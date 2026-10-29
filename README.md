@@ -2,7 +2,7 @@
 
 Avance de Semana 12: frontend Vue + Quasar integrado con API .NET 10.
 La base de datos del proyecto es PostgreSQL en Supabase, conforme a la
-indicación del profesor confirmada por Henry el 28/10/2026.
+indicación del profesor (28/10/2026).
 
 ## Arquitectura que pide el profesor
 
@@ -11,7 +11,7 @@ Los DTOs son los contratos HTTP; no se exponen entidades de usuarios ni hashes.
 - API: controladores, autenticación JWT y OpenAPI.
 - CORE/Core: entidades, DTOs, interfaces y reglas de negocio.
 - CORE/Infrastructure: consultas y persistencia con EF Core/Npgsql.
-- Verificación de ALICE: pruebas externas; no se agrega otro proyecto o framework de pruebas a la solución de clase.
+- Verificación: pruebas externas; no se agrega otro proyecto o framework de pruebas a la solución de clase.
 
 ## Preparación local
 
@@ -98,7 +98,7 @@ Los módulos previos del equipo se conservan sin refactorizarlos de estilo.
 
 ## Verificación y límites
 
-Compilar: `dotnet build`. Las pruebas externas de ALICE verifican servicios,
+Compilar: `dotnet build`. Las pruebas externas verifican servicios,
 HTTP y EF InMemory; no se incluyen en el programa que debe explicar el alumno.
 Las pruebas InMemory no prueban SQL, constraints, RLS ni triggers de Supabase.
 No se ha conectado esta versión a la base real ni se ha migrado su esquema.
@@ -141,5 +141,3 @@ la UI siempre salen de la API configurada, sin una lista de demostración
 incorporada al producto. El laboratorio de pruebas tiene sus propios fixtures
 y no debe usarse como base del equipo.
 
-El puerto 3001/v2 pertenece a Studio/SOUL, por donde se conversa con ALICE.
-**No es** el puerto del proyecto académico y no se modifica ni reinicia aquí.

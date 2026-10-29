@@ -9,7 +9,7 @@ Microsoft.Extensions.AI. Página 3: Semana 12 (05/11/2026), frontend al 50%
 integrado con backend, en GitHub y compartido con integrantes y docente.
 Las semanas 15–16 piden el sistema completo, con IA integrada.
 
-Aclaración del docente comunicada por Henry el 28/10/2026: para este proyecto
+Aclaración del docente del 28/10/2026: para este proyecto
 la base de datos solicitada es **Supabase (PostgreSQL)**. Esta indicación
 aclara la mención a SQL Server de la rúbrica escrita.
 
@@ -36,7 +36,7 @@ La gestión de eventos de PR #23 se conserva aparte, sin sobrescribirla.
 
 ## Base de datos confirmada
 
-Supabase (PostgreSQL), según la aclaración de Henry del 28/10/2026 sobre lo
+Supabase (PostgreSQL), según la aclaración del docente del 28/10/2026 sobre lo
 pedido por el profesor. Se conserva el proveedor Npgsql y la arquitectura de
 clase. La decisión de tecnología está resuelta; la integración de lectura con la base del
 equipo pasó 12 comprobaciones HTTP y 9 de navegador real el 29/10/2026.
@@ -57,7 +57,7 @@ remotas ni modifica datos, permisos o credenciales.
 10. Publicar en una rama de GitHub y compartir acceso con el profesor: crear
     código local no acredita publicación ni acceso del docente.
 
-Las pruebas automáticas de ALICE usan Chromium real y controladores/repositorios
+Las pruebas automáticas usan Chromium real y controladores/repositorios
 .NET reales con EF InMemory en un proceso separado. No prueban PostgreSQL, sus
 triggers, RLS, concurrencia de compra, correo o proveedor IA. El laboratorio no
 está incorporado al frontend del alumno ni permite activar un modo demo oculto.
