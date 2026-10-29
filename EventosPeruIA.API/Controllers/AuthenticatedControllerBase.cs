@@ -7,8 +7,9 @@ public abstract class AuthenticatedControllerBase : ControllerBase
 {
     protected bool TryGetUserId(out int userId)
     {
-        var value = User.FindFirstValue(ClaimTypes.NameIdentifier)
+        var value = User.FindFirstValue("UserId")
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
             ?? User.FindFirstValue("sub");
-        return int.TryParse(value, out userId);
+        return int.TryParse(value, out userId) && userId > 0;
     }
 }

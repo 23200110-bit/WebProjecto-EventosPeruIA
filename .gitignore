@@ -363,3 +363,9 @@ MigrationBackup/
 FodyWeavers.xsd
 # User secrets and local appsettings
 appsettings.Development.json
+# Frontend dependencies and build outputs
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
