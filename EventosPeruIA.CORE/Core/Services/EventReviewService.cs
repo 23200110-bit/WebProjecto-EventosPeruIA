@@ -1,7 +1,6 @@
-using EventosPeruIA.CORE.Core.DTOs.EventReviews;
+using EventosPeruIA.CORE.Core.DTOs;
 using EventosPeruIA.CORE.Core.Entities;
-using EventosPeruIA.CORE.Core.Interfaces.Repositories;
-using EventosPeruIA.CORE.Core.Interfaces.Services;
+using EventosPeruIA.CORE.Core.Interfaces;
 
 namespace EventosPeruIA.CORE.Core.Services;
 

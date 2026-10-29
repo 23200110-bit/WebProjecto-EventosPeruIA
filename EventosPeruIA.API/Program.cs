@@ -1,8 +1,7 @@
 using EventosPeruIA.CORE.Infrastructure.Shared;
 using EventosPeruIA.CORE.Infrastructure.Data;
-using EventosPeruIA.CORE.Core.Interfaces.Repositories;
-using EventosPeruIA.CORE.Core.Interfaces.Services;
 using EventosPeruIA.CORE.Core.Services;
+using EventosPeruIA.CORE.Core.Interfaces;
 using EventosPeruIA.CORE.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,6 +21,9 @@ builder.Services.AddScoped<IEventReviewRepository, EventReviewRepository>();
 builder.Services.AddScoped<IUserProfileService, UserProfileService>();
 builder.Services.AddScoped<IRecommendationService, RecommendationService>();
 builder.Services.AddScoped<IEventReviewService, EventReviewService>();
+builder.Services.AddScoped<IEventoRepository, EventoRepository>();
+builder.Services.AddScoped<IEventoService, EventoService>();
+
 builder.Services.AddScoped<IPersonalRepository, PersonalRepository>();
 builder.Services.AddScoped<IPersonalService, PersonalService>();
 builder.Services.AddScoped<IEventCatalogRepository, EventCatalogRepository>();

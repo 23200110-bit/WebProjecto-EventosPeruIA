@@ -1,5 +1,5 @@
-using EventosPeruIA.CORE.Core.DTOs.Recommendations;
-using EventosPeruIA.CORE.Core.Interfaces.Services;
+using EventosPeruIA.CORE.Core.DTOs;
+using EventosPeruIA.CORE.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

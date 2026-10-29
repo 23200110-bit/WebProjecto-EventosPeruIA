@@ -1,6 +1,6 @@
 using EventosPeruIA.CORE.Core.Entities;
 
-namespace EventosPeruIA.CORE.Core.Interfaces.Repositories;
+namespace EventosPeruIA.CORE.Core.Interfaces;
 
 public interface IUserProfileRepository
 {
