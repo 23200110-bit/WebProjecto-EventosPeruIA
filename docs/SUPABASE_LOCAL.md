@@ -1,6 +1,6 @@
 # Ejecutar la API con Supabase
 
-La API usa PostgreSQL mediante Npgsql. No requiere SQL Server ni una migración de la base existente. `appsettings.json` deja `ConnectionStrings:DevConnection` vacío deliberadamente; la aplicación rechaza el arranque si falta la configuración externa.
+La API usa PostgreSQL mediante Npgsql. No requiere SQL Server ni una migración de la base existente. En `appsettings.json`, reemplazar `AQUI_VA_LA_CONTRASEÑA` por la contraseña de la base, o configurarla con `dotnet user-secrets` como se indica abajo.
 
 ## Configuración local
 
@@ -40,7 +40,6 @@ Usá el puerto real anunciado por la API. El frontend sólo conoce `/api`: no re
 
 ## Alcance de la verificación del 29-oct-2026
 
-Se ejecutaron consultas sobre la base Supabase existente sin migraciones ni datos de prueba insertados. La prueba añade una guarda de sólo lectura **exclusiva del laboratorio**, fuera del proyecto; la aplicación normal conserva sus operaciones autorizadas de registro y perfil. El catálogo real y el rechazo del login inexistente no prueban un login válido ni todas las operaciones de escritura en producción.
 
 La contraseña antigua fue retirada del archivo de trabajo; esto no borra commits anteriores ni sustituye la rotación de una credencial previamente publicada. No se reescribió la historia de Git ni se publicó esta entrega.
 

@@ -1,17 +1,15 @@
 # Eventos Perú IA
 
 Avance de Semana 12: frontend Vue + Quasar integrado con API .NET 10.
-La base de datos del proyecto es PostgreSQL en Supabase, conforme a la
-indicación del profesor (28/10/2026).
+La base de datos del proyecto es PostgreSQL en Supabase.
 
-## Arquitectura que pide el profesor
+## Arquitectura
 
 `Controller → IService → Service → IRepository → Repository → PostgresContext`.
 Los DTOs son los contratos HTTP; no se exponen entidades de usuarios ni hashes.
 - API: controladores, autenticación JWT y OpenAPI.
 - CORE/Core: entidades, DTOs, interfaces y reglas de negocio.
 - CORE/Infrastructure: consultas y persistencia con EF Core/Npgsql.
-- Verificación: pruebas externas; no se agrega otro proyecto o framework de pruebas a la solución de clase.
 
 ## Preparación local
 
@@ -69,47 +67,7 @@ clave y duración (por defecto 30 minutos). La validación JWT sigue el ejemplo
 del profesor. El login rechaza cuentas bloqueadas; un token emitido anteriormente
 sigue válido hasta su vencimiento. No se agrega un sistema de revocación.
 
-## Alcance y pendientes
-
-Esta versión de Semana 12 **no es la entrega completa de las 19 historias**. Ver
-[matriz de requisitos](docs/ESTADO_REQUISITOS.md), con los criterios de los issues
-originales en `docs/requisitos-origen.json`. No cerrar issues completos sólo por
-estas pruebas: falta la aplicación web y la comprobación con el SQL real.
-
-La rama abierta `feature/gestion-y-cancelacion-de-eventos` / PR #23 contiene trabajo
-ajeno de gestión de eventos; no se ha mezclado ni sobrescrito aquí.
-
-## Nivel de Semana 12
-
-Referencia: `luischang/UESAN.ECOMMERCE202602`, commit
-`604d59b20d8365d8de9f625475410a3950990c45`.
-
-Se utiliza su estructura de clases normales, constructores con inyección,
-DTOs, interfaces, servicios, repositorios, EF y JWT. La configuración JWT se
-separa en `JWTSettings`, `IJWTService`, `JWTService` y `ServiceRegistration`.
-Se conserva PostgreSQL/Npgsql porque es la base del proyecto del equipo.
-
-No se añade limitador de solicitudes, revalidación de sesión por petición,
-mediadores, CQRS, Docker ni microservicios. El frontend usa Vue + Quasar,
-porque la rúbrica lo exige, con JavaScript y componentes de Options API. La única
-salvaguarda extra frente al ejemplo es no guardar contraseñas en texto plano:
-se utiliza el hash integrado de ASP.NET Core, no un sistema propio de cifrado.
-Los módulos previos del equipo se conservan sin refactorizarlos de estilo.
-
-## Verificación y límites
-
-Compilar: `dotnet build`. Las pruebas externas verifican servicios,
-HTTP y EF InMemory; no se incluyen en el programa que debe explicar el alumno.
-Las pruebas InMemory no prueban SQL, constraints, RLS ni triggers de Supabase.
-No se ha conectado esta versión a la base real ni se ha migrado su esquema.
-Faltan las integraciones y criterios indicados en la matriz; no se declara el
-proyecto completo ni Google/correo funcionando.
-
-## Frontend Semana 12 — Vue + Quasar
-
-La rúbrica `proyecto_DAW_2026_2.pdf` fija la presentación de Semana 12 para
-el **05/11/2026**: frontend al 50%, integrado al backend y en GitHub. El 100%
-corresponde al final del curso. Ver `docs/SEMANA12.md`.
+## Frontend — Vue + Quasar
 
 1. Configurar secretos de la API como se explica arriba.
 2. En una terminal: `dotnet run --project EventosPeruIA.API --urls http://localhost:5080`.
@@ -136,8 +94,8 @@ la pestaña hay que iniciar sesión otra vez. Reseñas se habilitan tras finaliz
 el evento y el backend exige una entrada utilizada.
 
 No se procesan compras ni pagos en este avance; el botón aparece deshabilitado
-y lo indica. Tampoco se ofrece un Google OAuth o correo ficticio. Los datos de
-la UI siempre salen de la API configurada, sin una lista de demostración
-incorporada al producto. El laboratorio de pruebas tiene sus propios fixtures
-y no debe usarse como base del equipo.
+y lo indica. Tampoco se ofrece un Google OAuth o correo ficticio. 
+## Pendiente para la entrega final
 
+Compras y pagos, correo, reportes, inicio de sesión con Google y el resto de
+historias de usuario del proyecto.
