@@ -1,6 +1,6 @@
-using EventosPeruIA.CORE.Core.DTOs.UserProfile;
+using EventosPeruIA.CORE.Core.DTOs;
 
-namespace EventosPeruIA.CORE.Core.Interfaces.Services;
+namespace EventosPeruIA.CORE.Core.Interfaces;
 
 public interface IUserProfileService
 {

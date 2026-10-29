@@ -1,6 +1,6 @@
-using EventosPeruIA.CORE.Core.DTOs.EventReviews;
+using EventosPeruIA.CORE.Core.DTOs;
 
-namespace EventosPeruIA.CORE.Core.Interfaces.Services;
+namespace EventosPeruIA.CORE.Core.Interfaces;
 
 public interface IEventReviewService
 {

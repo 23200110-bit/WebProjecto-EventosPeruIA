@@ -1,4 +1,4 @@
-namespace EventosPeruIA.CORE.Core.DTOs.UserProfile;
+namespace EventosPeruIA.CORE.Core.DTOs;
 
 public sealed class UserProfileResponse
 {

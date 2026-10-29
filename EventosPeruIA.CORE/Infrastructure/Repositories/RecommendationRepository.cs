@@ -1,5 +1,5 @@
 using EventosPeruIA.CORE.Core.Entities;
-using EventosPeruIA.CORE.Core.Interfaces.Repositories;
+using EventosPeruIA.CORE.Core.Interfaces;
 using EventosPeruIA.CORE.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 

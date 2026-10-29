@@ -1,4 +1,4 @@
-namespace EventosPeruIA.CORE.Core.DTOs.EventReviews;
+namespace EventosPeruIA.CORE.Core.DTOs;
 
 public sealed class CreateEventReviewRequest
 {

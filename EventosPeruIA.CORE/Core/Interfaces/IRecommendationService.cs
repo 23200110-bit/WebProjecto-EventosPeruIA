@@ -1,6 +1,6 @@
-using EventosPeruIA.CORE.Core.DTOs.Recommendations;
+using EventosPeruIA.CORE.Core.DTOs;
 
-namespace EventosPeruIA.CORE.Core.Interfaces.Services;
+namespace EventosPeruIA.CORE.Core.Interfaces;
 
 public interface IRecommendationService
 {

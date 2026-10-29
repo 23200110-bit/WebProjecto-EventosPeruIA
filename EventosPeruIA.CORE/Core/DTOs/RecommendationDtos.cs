@@ -1,4 +1,4 @@
-namespace EventosPeruIA.CORE.Core.DTOs.Recommendations;
+namespace EventosPeruIA.CORE.Core.DTOs;
 
 public sealed class RecommendationResponse
 {
