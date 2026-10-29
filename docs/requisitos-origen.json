@@ -1,0 +1,116 @@
+[
+  {
+    "number": 21,
+    "title": "US-019/Gestión de asistentes de un evento",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/21",
+    "acceptance": "**Rol:** Organizador\n\nComo organizador deseo consultar el listado y estado de los asistentes de mis eventos, con la finalidad de controlar las entradas vendidas y el ingreso durante el evento.\n\nCriterios de aceptación:\n\n* El organizador puede seleccionar uno de los eventos que administra.\n* Puede consultar la cantidad de entradas vendidas y la cantidad de asistentes que realizaron check-in.\n* Las entradas se diferencian por estado.\n* Después de realizar un check-in el listado se actualiza.\n* El organizador puede buscar una entrada por su identificador cuando sea necesario.\n* El organizador no puede visualizar información de asistentes pertenecientes a eventos de otros organizadores.\n* La información de asistencia debe coincidir con los registros generados por la validación QR."
+  },
+  {
+    "number": 20,
+    "title": "US-018/Recuperación de contraseña",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/20",
+    "acceptance": "**Rol:** Usuario\n\nComo usuario registrado deseo recuperar el acceso a mi cuenta cuando olvide mi contraseña, con la finalidad de continuar utilizando EventosPeruIA.\n\nCriterios de aceptación:\n\n* Desde el inicio de sesión existe la opción “Olvidé mi contraseña”.\n* El usuario proporciona su correo electrónico para iniciar el proceso.\n* Por seguridad, el sistema no confirma públicamente si el correo pertenece o no a una cuenta.\n* Si corresponde, se genera un mecanismo temporal de recuperación con fecha de expiración.\n* El usuario puede definir una nueva contraseña que cumpla las reglas de seguridad.\n* Una vez utilizada correctamente, la recuperación anterior queda invalidada.\n* La contraseña anterior deja de permitir el inicio de sesión."
+  },
+  {
+    "number": 19,
+    "title": "US-017/Asistente conversacional con IA y RAG",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/19",
+    "acceptance": "Rol: Usuario\n\nComo usuario deseo conversar con un asistente inteligente sobre los eventos disponibles, con la finalidad de resolver dudas y recibir recomendaciones.\n\nCriterios de aceptación:\n\n- El usuario puede realizar preguntas en lenguaje natural.\n- El asistente responde sobre categoría, fecha, ubicación, precio y disponibilidad.\n- Las recomendaciones deben coincidir con lo solicitado por el usuario.\n- No debe recomendar eventos cancelados, finalizados, no publicados o agotados como opciones disponibles.\n- La información mostrada debe coincidir con los datos actuales del evento.\n- Si no existen resultados, debe indicarlo sin inventar información.\n- Las recomendaciones deben permitir acceder al detalle del evento.\n- Diferentes preguntas deben generar respuestas acordes a cada consulta.\n- La conversación debe mantenerse durante la sesión hasta que el usuario inicie una nueva o cierre sesión."
+  },
+  {
+    "number": 18,
+    "title": "US-016/Moderación administrativa de usuarios y eventos",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/18",
+    "acceptance": "**Rol:** Administrador\n\nComo administrador deseo supervisar usuarios y eventos publicados, con la finalidad de mantener la seguridad y calidad de EventosPeruIA.\n\nCriterios de aceptación:\n\n* Solo los usuarios con rol Administrador pueden acceder al panel administrativo.\n* El administrador puede buscar y consultar usuarios y su estado.\n* El administrador puede bloquear y posteriormente reactivar una cuenta cuando corresponda.\n* El administrador puede consultar eventos publicados y retirar o suspender los que incumplan las reglas.\n* Las acciones administrativas sensibles solicitan confirmación.\n* Una cuenta bloqueada no puede iniciar una nueva sesión.\n* Un evento retirado deja de aparecer en búsquedas y recomendaciones públicas.\n* Las principales acciones administrativas quedan registradas para auditoría."
+  },
+  {
+    "number": 17,
+    "title": "US-015/Panel del organizador y reportes de ventas",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/17",
+    "acceptance": "**Rol:** Organizador\n\nComo organizador deseo consultar estadísticas y reportes de venta de mis eventos, con la finalidad de evaluar su desempeño y controlar los ingresos obtenidos.\n\nCriterios de aceptación:\n\n* El organizador solo puede consultar información de eventos que administra.\n* El panel muestra entradas vendidas (Válidas y Utilizadas), entradas disponibles e ingresos generados por evento.\n* Las entradas anuladas por cancelación no se cuentan como ingresos y se muestran por separado como pendientes de reembolso.\n* El organizador puede consultar ventas agrupadas por fecha, con un gráfico de su evolución.\n* Puede filtrar los reportes por evento y rango de fechas, y el sistema valida que la fecha de inicio no sea posterior a la de fin.\n* Si no existen ventas para el filtro elegido, se muestra un mensaje informativo.\n* Los eventos gratuitos se reportan con ingreso S/ 0.\n* Los datos se obtienen mediante agregaciones de la información real de ventas.\n* Los reportes pueden visualizarse directamente en la aplicación web, con montos en soles (S/).\n* El organizador puede exportar los reportes a Excel y PDF.\n* Los valores exportados deben coincidir con los mostrados en pantalla, e incluyen los filtros aplicados y la fecha de generación."
+  },
+  {
+    "number": 16,
+    "title": "US-014/Notificaciones de eventos",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/16",
+    "acceptance": "**Rol:** Usuario\n\nComo usuario que compró una entrada deseo recibir notificaciones relacionadas con mis eventos, con la finalidad de conocer recordatorios o modificaciones importantes.\n\nCriterios de aceptación:\n\n* Una compra confirmada puede generar una notificación de confirmación.\n* El usuario recibe un recordatorio antes del inicio del evento.\n* Un cambio de fecha, hora o ubicación relevante genera una notificación.\n* La cancelación del evento genera una notificación.\n* Cada notificación identifica claramente el evento afectado.\n* El usuario puede consultar sus notificaciones dentro de la aplicación.\n* Las notificaciones leídas pueden distinguirse de las pendientes."
+  },
+  {
+    "number": 15,
+    "title": "US-013/Calificaciones y reseñas",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/15",
+    "acceptance": "**Rol:** Usuario\n\nComo asistente deseo calificar y comentar sobre un evento al que asistí, con la finalidad de compartir mi experiencia con otros usuarios.\n\nCriterios de aceptación:\n\n*El usuario  presiona “Reseñar evento” en un evento con entrada ya utilizada (pestaña de ”“Mis entradas”).\n*El usuario se encuentra dentro del evento del que ya se utilizó la entrada.\n*Solo puede publicar una reseña un usuario que haya adquirido una entrada válida para el evento.\n*El evento debe haber finalizado para habilitar la reseña.\n*La pantalla carga detalles del evento pasado.\n*La pestaña muestra la opción para “Escribir reseña”.\n*La calificación utiliza una escala definida, por ejemplo, de 1 a 5 estrellas.\n*El usuario puede acompañar la calificación con un comentario.\n*Un mismo usuario solo puede mantener una reseña activa por evento.\n*Las reseñas se muestran en el detalle público del evento y se calcula el promedio de calificaciones.\n*Las reseñas pueden ser moderadas por un administrador cuando incumplan las reglas de la plataforma.\n*La pantalla muestra “Próximos eventos que podrían interesarte”.\n"
+  },
+  {
+    "number": 14,
+    "title": "US-012/Validación segura de entradas y check-in",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/14",
+    "acceptance": "**Rol:** Organizador\n\nComo organizador autorizado deseo validar el código QR de los asistentes, con la finalidad de controlar de manera segura el ingreso a mi evento.\n\nCriterios de aceptación:\n\n* El organizador se encuentra en “Gestión de asistentes” del evento que ha organizado.\n* El organizador presiona el ícono de escaneo por QR.\n* El organizador puede acceder al check-in únicamente para eventos que administra.\n* La pantalla muestra Título Chek-in con el nombre del evento\n* El sistema muestra un conteo de asistentes ingresados al evento (ya pasados por check-in).\n* El sistema permite escanear o ingresar un código QR\n* El sistema permite ingresar código manualmente con código alfanumérico..\n* El servidor valida que la entrada exista, pertenezca al evento correcto y se encuentre en estado Válida.\n* Al aprobar el ingreso la entrada cambia atómicamente a estado Utilizada.\n* Un QR utilizado anteriormente debe ser rechazado.\n* Una captura de pantalla del mismo QR no puede utilizarse para realizar un segundo ingreso.\n* Una entrada anulada o inexistente debe ser rechazada.\n* El sistema muestra claramente si el check-in fue aprobado o rechazado.\n* Se registra la fecha y hora del check-in.\n"
+  },
+  {
+    "number": 13,
+    "title": "US-011/Mis entradas, voucher y código QR",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/13",
+    "acceptance": "**Rol:** Usuario\nComo usuario autenticado deseo consultar mis entradas y su voucher digital con código QR, con la finalidad de utilizarlas para ingresar a mis eventos.\n\nCriterios de aceptación:\n\n* Las compras confirmadas aparecen en \"Mis entradas\", con una entrada por cada cupo comprado.\n* Cada entrada tiene un identificador único universal (UUID) generado por el servidor, no secuencial ni predecible.\n* Cada entrada genera un código QR asociado únicamente a dicho UUID.\n* El QR no contiene información sensible del usuario en texto legible.\n* El voucher muestra como mínimo evento, fecha, hora, ubicación, titular, precio, estado y un código corto de referencia.\n* El usuario solo puede consultar sus propias entradas; el acceso a una entrada ajena es rechazado.\n* El usuario puede volver a consultar sus entradas posteriormente.\n* El estado de cada entrada puede ser, como mínimo, Válida, Utilizada o Anulada.\n* Una entrada Utilizada o Anulada muestra su estado de forma visible, su QR se presenta deshabilitado y no puede usarse para ingresar.\n* Si la entrada fue anulada por cancelación del evento, se muestra el motivo y la indicación \"Pendiente de reembolso\"."
+  },
+  {
+    "number": 12,
+    "title": "US-010/Compra de entradas y control de aforo",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/12",
+    "acceptance": "**Rol: Usuario\nComo usuario autenticado deseo comprar una o más entradas disponibles para un evento, con la finalidad de asegurar mi asistencia.\nCriterios de aceptación:\n- El usuario selecciona la cantidad de entradas que desea adquirir y la cantidad debe ser como mínimo una.\n- No se puede seleccionar una cantidad superior a los cupos disponibles mostrados.\n- Antes de confirmar se muestra un resumen con evento, cantidad, precio unitario y total.\n- El servidor vuelve a validar la disponibilidad al confirmar la operación.\n- La compra y la reducción del aforo se realizan dentro de una operación atómica.\n- Dos compras concurrentes no pueden provocar que se exceda el aforo del evento.\n- Si otra compra consume los últimos cupos antes de la confirmación, la operación se rechaza e informa la nueva disponibilidad.\n- Una compra confirmada reduce inmediatamente los cupos disponibles y genera las entradas correspondientes.\n- El frontend refleja el nuevo aforo sin requerir una recarga manual de la página.\n- El sistema debe impedir la compra de entradas cuando el evento se encuentre en estado Cancelado.\n- Si el evento cambia a estado Cancelado durante el proceso de compra y antes de su confirmación, la operación debe rechazarse y mostrarse un mensaje indicando que el evento ya no está disponible."
+  },
+  {
+    "number": 11,
+    "title": "US-009/Cancelación de eventos",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/11",
+    "acceptance": "**Rol:** Organizador\n\nComo organizador deseo cancelar un evento cuando ocurra una causa justificada, con la finalidad de proteger a los compradores y mantener informada a la plataforma ante imprevistos.\n\nCriterios de aceptación:\n\n- El organizador solo puede cancelar eventos propios en estado Borrador o Publicado, antes de la fecha y hora de inicio.\n- Los eventos Finalizados o ya Cancelados no pueden cancelarse.\n- Si el evento no tiene entradas vendidas, el organizador puede cancelarlo indicando un motivo.\n- Si el evento ya tiene entradas vendidas, la cancelación solo se permite por causa justificada (fuerza mayor, orden o restricción de una autoridad, problemas en el recinto, imposibilidad del artista o expositor principal, clima adverso o razones de seguridad). El organizador debe seleccionar el motivo de una lista y agregar una descripción obligatoria.\n- Antes de confirmar, el sistema muestra una advertencia con la cantidad de entradas vendidas afectadas, indica que la acción es irreversible y solicita confirmación explícita.\n- Al cancelar, el evento pasa a estado Cancelado y se cierra la venta de entradas.\n- Las entradas vendidas pasan a estado Anulada, su código QR queda inválido y el check-in las rechaza.\n- Las entradas anuladas quedan marcadas como \"Pendiente de reembolso\", y el comprador lo ve reflejado en Mis entradas.\n- El sistema registra quién canceló el evento, cuándo, el motivo y su descripción.\n- La cancelación genera una notificación a todos los compradores afectados, indicando el motivo.\n- Un evento cancelado deja de aparecer en la búsqueda y en las recomendaciones, y el chatbot no lo sugiere como evento vigente (RN-10).\n- Al cancelarse el evento, se debe actualizar su representación utilizada por la IA."
+  },
+  {
+    "number": 10,
+    "title": "US-008/Gestión y publicación de eventos",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/10",
+    "acceptance": "**Rol:** Organizador\n\nComo organizador deseo crear, editar, publicar y administrar mis eventos, con la finalidad de ofrecerlos a los asistentes de EventosPeruIA.\n\nCriterios de aceptación:\n\n* El organizador puede crear un nuevo evento.\n* El formulario solicita como mínimo nombre, descripción, fecha, hora, ubicación, aforo, categoría y precio.\n* El aforo debe ser un número entero mayor que cero y el precio no puede ser negativo.\n* El organizador puede guardar inicialmente el evento como borrador y publicarlo cuando los datos obligatorios sean válidos.\n* Solo el propietario del evento o un administrador autorizado puede editarlo.\n* El organizador no puede reducir el aforo por debajo de la cantidad de entradas ya vendidas.\n* Los cambios relevantes de fecha, hora o ubicación generan las notificaciones correspondientes a los compradores afectados.\n* Cuando cambie información semánticamente relevante del evento, se debe actualizar su representación utilizada por la IA."
+  },
+  {
+    "number": 9,
+    "title": "US-007/Recomendaciones personalizadas de eventos",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/9",
+    "acceptance": "**Rol:** Usuario\n\nComo usuario autenticado deseo recibir recomendaciones personalizadas, con la finalidad de descubrir eventos relacionados con mis intereses y comportamiento dentro de la plataforma.\n\nCriterios de aceptación:\n\n* La sección “Recomendado para ti” utiliza información real del usuario y no una selección aleatoria.\n* Se consideran como mínimo las categorías de interés del perfil.\n* Se puede considerar el historial de eventos visualizados y las compras anteriores cuando exista información suficiente.\n* Se utiliza similitud semántica mediante embeddings como señal de afinidad entre eventos.\n* La ubicación se utiliza como señal complementaria cuando esté disponible.\n* No se recomiendan eventos cancelados o finalizados.\n* Se priorizan eventos próximos con disponibilidad.\n* Para usuarios sin historial se utilizan sus intereses declarados y eventos próximos con disponibilidad.\n* Cada recomendación permite acceder al detalle del evento."
+  },
+  {
+    "number": 7,
+    "title": "US-006/Visualización del detalle y disponibilidad del evento",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/7",
+    "acceptance": "**Rol:** Usuario\n\nComo usuario deseo consultar toda la información de un evento y su disponibilidad actual, con la finalidad de decidir si deseo asistir.\n\nCriterios de aceptación:\n\n* El usuario se encuentra en la pestaña “Explorar eventos” y cargan los eventos por categorías.\n* El usuario accede a un evento de su interés.\n* Se muestra nombre, descripción, categoría, fecha, hora, ubicación, organizador y precio.\n* Se muestra el aforo total y la cantidad de entradas disponibles.\n* La disponibilidad mostrada corresponde al valor vigente registrado por el servidor.\n* En el panel derecho aparece la opción de comprar entrada, para iniciar el proceso de compra.\n* Si se producen compras mientras el usuario visualiza el evento, la disponibilidad se actualiza de forma reactiva sin requerir recargar manualmente la página.\n* Un evento agotado debe identificarse claramente.\n* No se permite iniciar una compra cuando no queden entradas disponibles.\n* Los eventos cancelados muestran claramente su estado.\n* Abajo cargan próximos eventos que podrían interesar al usuario.\n"
+  },
+  {
+    "number": 6,
+    "title": "US-005/Búsqueda y filtrado de eventos",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/6",
+    "acceptance": "Rol: Usuario\nComo usuario deseo buscar y filtrar eventos, con la finalidad de encontrar actividades acordes con mis preferencias.\nCriterios de aceptación:\n- El usuario puede buscar eventos por nombre o palabra clave.\n- El usuario puede filtrar por categoría, fecha o rango de fechas y ubicación.\n- Se pueden combinar varios filtros simultáneamente.\n- Solo se muestran eventos que correspondan a los criterios seleccionados.\n- Los eventos con estado Cancelado no deben aparecer en los resultados de búsqueda.\n- El usuario puede limpiar los filtros aplicados.\n- Cada resultado muestra información resumida suficiente para identificar el evento.\n- Al seleccionar un resultado se abre el detalle del evento correspondiente."
+  },
+  {
+    "number": 4,
+    "title": "US-004/Navegación principal",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/4",
+    "acceptance": "**Rol:** Usuario\n\nComo usuario deseo disponer de un menú de navegación claro, con la finalidad de acceder fácilmente a las principales funcionalidades de EventosPeruIA.\n\nCriterios de aceptación:\n\n* La aplicación presenta un menú de navegación consistente en las vistas principales.\n* Un visitante puede acceder, como mínimo, a Inicio, Explorar eventos, Iniciar sesión y Registrarse.\n* Un usuario autenticado puede acceder además a Mis entradas, Perfil, Recomendaciones y Cerrar sesión.\n* Las opciones de gestión de eventos se muestran cuando el usuario actúa como organizador.\n* Las opciones administrativas solo pueden ser utilizadas por administradores autorizados.\n* La navegación debe adaptarse correctamente a diferentes tamaños de pantalla."
+  },
+  {
+    "number": 3,
+    "title": "US-003/Gestión de perfil, intereses y ubicación",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/3",
+    "acceptance": "**Rol:** Usuario\n\nComo usuario autenticado deseo configurar mi perfil, intereses y ubicación de referencia, con la finalidad de recibir recomendaciones de eventos más relevantes para mí.\n\nCriterios de aceptación:\n\n* El usuario puede actualizar los datos personales permitidos de su perfil.\n* El usuario puede seleccionar una o más categorías de interés.\n* El usuario puede definir una ciudad o ubicación de referencia.\n* Los intereses y la ubicación pueden modificarse posteriormente.\n* Los intereses registrados deben asociarse a la cuenta y utilizarse como señal para las recomendaciones.\n* La plataforma debe continuar funcionando aunque el usuario decida no proporcionar ubicación."
+  },
+  {
+    "number": 2,
+    "title": "US-002/Inicio de sesión",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/2",
+    "acceptance": "**Rol:** Usuario\n\nComo usuario registrado deseo iniciar sesión mediante mis credenciales, con la finalidad de acceder a las funcionalidades asociadas a mi cuenta.\n\nCriterios de aceptación:\n\n* El panel izquierdo debe mostrar el nombre, logotipo y mensaje informativo.\n* El panel derecho muestra mensaje de Bienvenida\n* El panel derecho debe mostrar campos para rellenar correo y contraseña para inicio de sesión.\n* La pantalla muestra la opción muestra la opción de “Registrarse”, para crear una cuenta.\n* El sistema solicita correo electrónico y contraseña.\n* Ambos campos son obligatorios para habilitar el inicio de sesión.\n* Las credenciales deben verificarse contra los datos registrados.\n* Si las credenciales son incorrectas se muestra el mensaje “Correo o contraseña incorrectos”.\n* La contraseña no se muestra ni se almacena en texto plano.\n* Se muestra la opción de “Continuar con Google”.\n* Se muestra la opción de “Olvidé mi contraseña”\n* Al autenticarse correctamente se inicia una sesión con la cuenta del usuario y muestra su interfaz correspondiente.\n"
+  },
+  {
+    "number": 1,
+    "title": "US-001/Registro de usuario",
+    "url": "https://github.com/23200110-bit/WebProjecto-EventosPeruIA/issues/1",
+    "acceptance": "**Rol:** Usuario\n\nComo usuario nuevo deseo registrarme en EventosPeruIA proporcionando mis datos personales, con la finalidad de disponer de una cuenta para descubrir eventos, comprar entradas y, si lo deseo, organizar eventos.\n\nCriterios de aceptación:\n\n* El sistema debe solicitar nombre, apellidos, correo electrónico, contraseña y confirmación de contraseña.\n* El correo electrónico debe tener un formato válido y ser único en el sistema.\n* La contraseña debe tener como mínimo 8 caracteres.\n* El campo de confirmación debe coincidir con la contraseña ingresada.\n* El botón de registro solo se habilita cuando los campos obligatorios sean válidos.\n* Al completar correctamente el registro se crea una única cuenta que podrá actuar posteriormente como asistente y organizador.\n* El sistema debe informar al usuario que su cuenta fue creada correctamente."
+  }
+]

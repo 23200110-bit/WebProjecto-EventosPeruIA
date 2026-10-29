@@ -30,14 +30,23 @@ public sealed class UserProfileRepository(PostgresContext context) : IUserProfil
         IEnumerable<UsuarioIntereses> interests,
         CancellationToken cancellationToken = default)
     {
-        context.Usuarios.Update(user);
-
-        var existingInterests = await context.UsuarioIntereses
-            .Where(interest => interest.UsuarioId == user.UsuarioId)
-            .ToListAsync(cancellationToken);
-
-        context.UsuarioIntereses.RemoveRange(existingInterests);
-        await context.UsuarioIntereses.AddRangeAsync(interests, cancellationToken);
+        // Reload one tracked aggregate; never attach the disconnected navigation graph.
+        var tracked = await context.Usuarios.Include(u => u.UsuarioIntereses)
+            .SingleAsync(u => u.UsuarioId == user.UsuarioId, cancellationToken);
+        tracked.Nombres = user.Nombres;
+        tracked.Apellidos = user.Apellidos;
+        tracked.Telefono = user.Telefono;
+        tracked.FotoUrl = user.FotoUrl;
+        tracked.CiudadUbicacion = user.CiudadUbicacion;
+        tracked.Latitud = user.Latitud;
+        tracked.Longitud = user.Longitud;
+        tracked.FechaActualizacion = user.FechaActualizacion;
+        var selected = interests.ToDictionary(i => i.CategoriaId);
+        foreach (var old in tracked.UsuarioIntereses.ToArray())
+            if (!selected.ContainsKey(old.CategoriaId)) context.UsuarioIntereses.Remove(old);
+        var existing = tracked.UsuarioIntereses.Select(i => i.CategoriaId).ToHashSet();
+        foreach (var item in selected.Values)
+            if (!existing.Contains(item.CategoriaId)) tracked.UsuarioIntereses.Add(item);
         await context.SaveChangesAsync(cancellationToken);
     }
 }
