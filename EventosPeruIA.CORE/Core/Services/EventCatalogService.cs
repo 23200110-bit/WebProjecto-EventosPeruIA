@@ -20,4 +20,39 @@ public class EventCatalogService:IEventCatalogService
         return repository.SearchAsync(request,ct);
     }
     public Task<EventCatalogItem?> GetAsync(int id,CancellationToken ct=default)=>repository.GetAsync(id,ct);
+
+
+	//Parte de santiago
+
+	public async Task<EventDetailResponse?> GetDetailWithCapacityAsync(int id, CancellationToken ct = default)
+	{
+		var item = await repository.GetAsync(id, ct);
+		if (item == null) return null;
+
+		var soldTickets = await repository.GetSoldTicketsCountAsync(id, ct);
+		var availableSpots = Math.Max(0, item.Capacity - soldTickets);
+
+		return new EventDetailResponse
+		{
+			Id = item.Id,
+			Name = item.Name,
+			Description = item.Description,
+			ImageUrl = item.ImageUrl,
+			CategoryId = item.CategoryId,
+			Category = item.Category,
+			Address = item.Address,
+			City = item.City,
+			Venue = item.Venue,
+			Organizer = item.Organizer,
+			StartDate = item.StartDate,
+			EndDate = item.EndDate,
+			Price = item.Price,
+			Currency = item.Currency,
+			Status = item.Status,
+			Capacity = item.Capacity,
+			SoldTickets = soldTickets,
+			AvailableSpots = availableSpots,
+			IsSoldOut = availableSpots == 0
+		};
+	}
 }

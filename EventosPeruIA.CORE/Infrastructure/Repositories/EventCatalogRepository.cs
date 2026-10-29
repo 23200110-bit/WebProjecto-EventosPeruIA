@@ -46,4 +46,13 @@ public class EventCatalogRepository:IEventCatalogRepository
     public Task<EventCatalogItem?> GetAsync(int id,CancellationToken ct=default)=>
         Project(context.Eventos.AsNoTracking().Where(e=>e.EventoId==id && e.EstadoModeracion=="Aprobado" &&
             (e.Estado=="Publicado"||e.Estado=="Finalizado"||e.Estado=="Cancelado"))).SingleOrDefaultAsync(ct);
+
+    //Parte de Santiago
+
+	public async Task<int> GetSoldTicketsCountAsync(int eventId, CancellationToken ct = default)
+	{
+		return await context.Entradas
+			.CountAsync(t => t.EventoId == eventId &&
+							(t.Estado == "Valida" || t.Estado == "Utilizada"), ct);
+	}
 }
