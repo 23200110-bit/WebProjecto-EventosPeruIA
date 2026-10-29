@@ -57,7 +57,7 @@ public sealed class RecommendationService(IRecommendationRepository repository) 
             reasons.Add("is in your preferred location");
         }
 
-        var semanticScore = CosineSimilarity(userVector, evento.EventosEmbeddings?.VectorEmbedding);
+        var semanticScore = CosineSimilarity(userVector, evento.EventosEmbeddings?.Vigente == true ? evento.EventosEmbeddings.VectorEmbedding : null);
         if (semanticScore > 0)
         {
             score += semanticScore * 0.25m;
@@ -106,8 +106,8 @@ public sealed class RecommendationService(IRecommendationRepository repository) 
             return null;
         }
 
-        var dimensions = values.Min(vector => vector.Count);
-        if (dimensions == 0)
+        var dimensions = values[0].Count;
+        if (dimensions == 0 || values.Any(v => v.Count != dimensions || v.Any(x => !float.IsFinite(x))))
         {
             return null;
         }
@@ -136,7 +136,8 @@ public sealed class RecommendationService(IRecommendationRepository repository) 
             return 0;
         }
 
-        var dimensions = Math.Min(first.Length, second.Count);
+        if (first.Length != second.Count || first.Any(x => !float.IsFinite(x)) || second.Any(x => !float.IsFinite(x))) return 0;
+        var dimensions = first.Length;
         double dot = 0;
         double firstMagnitude = 0;
         double secondMagnitude = 0;

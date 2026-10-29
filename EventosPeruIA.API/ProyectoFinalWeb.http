@@ -1,6 +1,24 @@
-@ProyectoFinalWeb_HostAddress = http://localhost:5279
+@baseUrl = http://localhost:5000
+@token = REEMPLAZAR_CON_ACCESS_TOKEN
 
-GET {{ProyectoFinalWeb_HostAddress}}/weatherforecast/
-Accept: application/json
+### Registro (usar datos de prueba propios; no requiere permisos administrativos)
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
 
-###
+{"firstName":"Nombre","lastName":"Prueba","email":"prueba@example.com","password":"Cambiar-esta-clave-123","confirmPassword":"Cambiar-esta-clave-123"}
+
+### Login: copiar accessToken de la respuesta en la variable token
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{"email":"prueba@example.com","password":"Cambiar-esta-clave-123"}
+
+### Perfil propio
+GET {{baseUrl}}/api/profile
+Authorization: Bearer {{token}}
+
+### Catálogo
+GET {{baseUrl}}/api/catalog/events?city=Lima&page=1&pageSize=20
+
+### Categorías activas
+GET {{baseUrl}}/api/catalog/categories

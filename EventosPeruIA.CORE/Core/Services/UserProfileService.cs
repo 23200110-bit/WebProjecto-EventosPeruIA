@@ -27,6 +27,13 @@ public sealed class UserProfileService(IUserProfileRepository repository) : IUse
             throw new ArgumentException("Latitude and longitude must be provided together.");
         }
 
+        if (request.Latitude is < -90 or > 90 || request.Longitude is < -180 or > 180)
+            throw new ArgumentException("La ubicación está fuera de los límites válidos.");
+        if (request.FirstName.Trim().Length > 100 || request.LastName.Trim().Length > 100 ||
+            request.Phone?.Length > 20 || request.PhotoUrl?.Length > 500 || request.City?.Length > 100)
+            throw new ArgumentException("Uno de los datos excede la longitud permitida.");
+        if (request.InterestCategoryIds is null)
+            throw new ArgumentException("La lista de intereses es obligatoria (puede estar vacía).");
         var user = await repository.GetByIdAsync(userId, cancellationToken)
             ?? throw new KeyNotFoundException("User profile was not found.");
         var categoryIds = request.InterestCategoryIds.Distinct().ToArray();
