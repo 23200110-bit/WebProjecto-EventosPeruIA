@@ -64,8 +64,35 @@ del esquema conserva la unicidad concurrente. El login no devuelve el hash.
 Los hashes de otros algoritmos ya existentes requieren compatibilidad explícita;
 no se comparan contraseñas en texto plano. JWTSettings configura issuer, audience,
 clave y duración (por defecto 30 minutos). La validación JWT sigue el ejemplo
-del profesor. El login rechaza cuentas bloqueadas; un token emitido anteriormente
-sigue válido hasta su vencimiento. No se agrega un sistema de revocación.
+del profesor. El login rechaza cuentas bloqueadas; cada solicitud autenticada
+consulta el estado y el rol actuales de la cuenta para impedir el uso de tokens de cuentas bloqueadas.
+
+## Backend de moderación, asistentes y chat (US-016, US-019, US-017)
+
+| Método | Ruta | Acceso |
+|---|---|---|
+| GET | `/api/admin/usuarios` | Administrador; búsqueda, estado y paginación |
+| GET | `/api/admin/eventos` | Administrador; búsqueda, estado y paginación |
+| PATCH | `/api/admin/usuarios/{id}/estado` | Administrador; estado, motivo y confirmación |
+| PATCH | `/api/admin/eventos/{id}/moderar` | Administrador; acción, motivo y confirmación |
+| GET | `/api/events/{id}/asistentes` | Únicamente el organizador propietario |
+| POST | `/api/ai/chat` | Usuario autenticado; conversación privada |
+
+Las consultas a PostgreSQL se implementan en los repositorios; los servicios
+aplican reglas de negocio y los controladores reciben y devuelven DTOs. Se utiliza
+el `PostgresContext` y las funciones de moderación y embeddings existentes, sin migraciones.
+
+Para el chat, instalar en Ollama los modelos `llama3.2` y `nomic-embed-text`.
+La dirección predeterminada es `http://localhost:11434/`; se puede sobrescribir
+con `AI__Ollama__BaseUrl`, `AI__Ollama__ChatModel` y `AI__Ollama__EmbeddingModel`.
+El body admite `mensaje` y, para continuar, el `conversacionId` devuelto anteriormente.
+Omitir ese ID inicia una conversación nueva. El endpoint admite diez solicitudes
+por minuto por usuario. Los enlaces apuntan al detalle público del catálogo.
+
+La prueba de integración requiere `EVENTOS_TEST_CONNECTION` con una conexión
+PostgreSQL del esquema del proyecto. Ejecutar `dotnet test`; crea datos sintéticos
+en una transacción y los revierte al terminar. De forma predeterminada sustituye
+el modelo por uno controlado; `EVENTOS_TEST_OLLAMA=1` utiliza Ollama real.
 
 ## Frontend — Vue + Quasar
 

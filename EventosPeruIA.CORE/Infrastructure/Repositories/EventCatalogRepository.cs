@@ -29,7 +29,7 @@ public class EventCatalogRepository:IEventCatalogRepository
     public async Task<IReadOnlyCollection<EventCatalogItem>> SearchAsync(EventSearchRequest request,CancellationToken ct=default)
     {
         var now=DateTime.UtcNow;
-        var query=context.Eventos.AsNoTracking().Where(e=>e.Estado=="Publicado" && e.EstadoModeracion=="Aprobado" && e.FechaInicio>now);
+        var query=context.Eventos.AsNoTracking().Where(e=>e.Estado=="Publicado" && e.EstadoModeracion=="Aprobado" && e.Organizador.Estado=="Activo" && e.FechaInicio>now);
         if(!string.IsNullOrWhiteSpace(request.Query))
         {
             var term=request.Query.ToLowerInvariant();
@@ -44,6 +44,6 @@ public class EventCatalogRepository:IEventCatalogRepository
             .Skip((request.Page-1)*request.PageSize).Take(request.PageSize)).ToArrayAsync(ct);
     }
     public Task<EventCatalogItem?> GetAsync(int id,CancellationToken ct=default)=>
-        Project(context.Eventos.AsNoTracking().Where(e=>e.EventoId==id && e.EstadoModeracion=="Aprobado" &&
+        Project(context.Eventos.AsNoTracking().Where(e=>e.EventoId==id && e.EstadoModeracion=="Aprobado" && e.Organizador.Estado=="Activo" &&
             (e.Estado=="Publicado"||e.Estado=="Finalizado"||e.Estado=="Cancelado"))).SingleOrDefaultAsync(ct);
 }

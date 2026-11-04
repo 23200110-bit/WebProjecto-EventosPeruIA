@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using EventosPeruIA.CORE.Core.DTOs;
 using EventosPeruIA.CORE.Core.Interfaces;
 using EventosPeruIA.CORE.Infrastructure.Data;
@@ -33,7 +33,7 @@ namespace EventosPeruIA.API.Controllers
         {
             var query = _context.Eventos
                 .Include(e => e.Categoria)
-                .Where(e => e.Estado == "Publicado")
+                .Where(e => e.Estado == "Publicado" && e.EstadoModeracion == "Aprobado" && e.Organizador.Estado == "Activo")
                 .AsQueryable();
 
             if (categoriaId.HasValue)
@@ -75,7 +75,7 @@ namespace EventosPeruIA.API.Controllers
         {
             var evento = await _context.Eventos
                 .Include(e => e.Categoria)
-                .FirstOrDefaultAsync(e => e.EventoId == id);
+                .FirstOrDefaultAsync(e => e.EventoId == id && e.Estado == "Publicado" && e.EstadoModeracion == "Aprobado" && e.Organizador.Estado == "Activo");
 
             if (evento == null)
             {
@@ -192,7 +192,7 @@ namespace EventosPeruIA.API.Controllers
 
         private int GetUserId()
         {
-            var claim = User.FindFirst("UsuarioId")
+            var claim = User.FindFirst("UserId") ?? User.FindFirst("UsuarioId")
                 ?? User.FindFirst(ClaimTypes.NameIdentifier);
 
             if (claim == null) return 0;
