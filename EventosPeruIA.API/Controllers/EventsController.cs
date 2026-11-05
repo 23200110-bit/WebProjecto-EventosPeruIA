@@ -73,11 +73,30 @@ namespace EventosPeruIA.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> ObtenerDetalle(int id)
         {
-            var evento = await _context.Eventos
-                .Include(e => e.Categoria)
-                .FirstOrDefaultAsync(e => e.EventoId == id && e.Estado == "Publicado" && e.EstadoModeracion == "Aprobado" && e.Organizador.Estado == "Activo");
+            // Una sola petición a la base de datos que resuelve el Evento y el Conteo juntos
+            var detalle = await _context.Eventos
+                .AsNoTracking()
+                .Where(e => e.EventoId == id
+                         && e.Estado == "Publicado"
+                         && e.EstadoModeracion == "Aprobado"
+                         && e.Organizador.Estado == "Activo")
+                .Select(e => new
+                {
+                    e.EventoId,
+                    e.Nombre,
+                    e.Descripcion,
+                    e.FechaInicio,
+                    e.FechaFin,
+                    e.Direccion,
+                    e.Precio,
+                    e.Aforo,
+                    e.Estado,
+                    Categoria = e.Categoria != null ? e.Categoria.Nombre : null,
+                    TicketsVendidos = _context.Entradas.Count(t => t.EventoId == e.EventoId && (t.Estado == "Valida" || t.Estado == "Utilizada"))
+                })
+                .FirstOrDefaultAsync();
 
-            if (evento == null)
+            if (detalle == null)
             {
                 return NotFound(new
                 {
@@ -86,31 +105,24 @@ namespace EventosPeruIA.API.Controllers
                 });
             }
 
-            var ticketsVendidos = await _context.Entradas
-                .CountAsync(t =>
-                    t.EventoId == id &&
-                    (t.Estado == "Valida" || t.Estado == "Utilizada"));
+            var cuposDisponibles = Math.Max(0, detalle.Aforo - detalle.TicketsVendidos);
 
-            var cuposDisponibles = Math.Max(0, evento.Aforo - ticketsVendidos);
-
-            var detalle = new
+            return Ok(new
             {
-                evento.EventoId,
-                evento.Nombre,
-                evento.Descripcion,
-                evento.FechaInicio,
-                evento.FechaFin,
-                evento.Direccion,
-                evento.Precio,
-                evento.Aforo,
-                evento.Estado,
-                Categoria = evento.Categoria != null ? evento.Categoria.Nombre : null,
-                TicketsVendidos = ticketsVendidos,
+                detalle.EventoId,
+                detalle.Nombre,
+                detalle.Descripcion,
+                detalle.FechaInicio,
+                detalle.FechaFin,
+                detalle.Direccion,
+                detalle.Precio,
+                detalle.Aforo,
+                detalle.Estado,
+                detalle.Categoria,
+                detalle.TicketsVendidos,
                 CuposDisponibles = cuposDisponibles,
                 Agotado = cuposDisponibles == 0
-            };
-
-            return Ok(detalle);
+            });
         }
 
         [HttpPost]
