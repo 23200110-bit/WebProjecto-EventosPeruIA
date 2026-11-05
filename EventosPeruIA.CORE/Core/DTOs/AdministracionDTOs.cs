@@ -28,7 +28,7 @@ public record PaginaDTO<T>(int Total, int Pagina, int TamanoPagina, IReadOnlyLis
 
 public sealed class ChatRequestDTO
 {
-    [Required, StringLength(2000, MinimumLength = 1)]
+    [Required(ErrorMessage = "Escribe una pregunta."), StringLength(2000, MinimumLength = 1, ErrorMessage = "El mensaje debe tener entre 1 y 2000 caracteres.")]
     public string Mensaje { get; set; } = "";
     [Range(1, int.MaxValue)]
     public int? ConversacionId { get; set; }

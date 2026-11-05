@@ -28,6 +28,8 @@ public sealed class SupabaseFactory(NpgsqlConnection connection, NpgsqlTransacti
         builder.UseSetting("JWTSettings:SecretKey", "Synthetic-supabase-test-key-012345678901234567890123456789");
         builder.UseSetting("JWTSettings:Issuer", "EventosPeruIA");
         builder.UseSetting("JWTSettings:Audience", "EventosPeruIA.Cliente");
+        var geminiKey = Environment.GetEnvironmentVariable("EVENTOS_TEST_GEMINI_KEY");
+        if (!string.IsNullOrWhiteSpace(geminiKey)) builder.UseSetting("AI:Gemini:ApiKey", geminiKey);
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<PostgresContext>();
@@ -40,11 +42,11 @@ public sealed class SupabaseFactory(NpgsqlConnection connection, NpgsqlTransacti
                 return db;
             });
             if (!modeloReal) { services.RemoveAll<IModeloIA>(); services.AddSingleton<IModeloIA>(modelo); }
-            else
+            else if (!string.IsNullOrWhiteSpace(geminiKey))
             {
-                services.AddHttpClient<OllamaModeloIA>(http => { http.BaseAddress = new Uri("http://localhost:11434/"); http.Timeout = TimeSpan.FromMinutes(2); });
+                services.AddHttpClient<GeminiModeloIA>(http => http.Timeout = TimeSpan.FromMinutes(2));
                 services.RemoveAll<IModeloIA>();
-                services.AddScoped<IModeloIA>(sp => new ModeloObservado(sp.GetRequiredService<OllamaModeloIA>(), SalidasIA));
+                services.AddScoped<IModeloIA>(sp => new ModeloObservado(sp.GetRequiredService<GeminiModeloIA>(), SalidasIA));
             }
         });
     }
@@ -62,7 +64,7 @@ public sealed class SupabaseTests
         try
         {
             var modelo = new ModeloPrueba { Filtros = "{\"ubicacion\":\"CIUDAD_PRUEBA_EDUARDO\"}" };
-            using var factory = new SupabaseFactory(connection, tx, modelo, Environment.GetEnvironmentVariable("EVENTOS_TEST_OLLAMA") == "1");
+            using var factory = new SupabaseFactory(connection, tx, modelo, !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("EVENTOS_TEST_GEMINI_KEY")));
             using var client = factory.CreateClient();
             client.Timeout = TimeSpan.FromMinutes(5);
             using var scope = factory.Services.CreateScope();
@@ -131,6 +133,15 @@ public sealed class SupabaseTests
                 Assert.Contains(frase, respuesta.GetProperty("respuesta").GetString());
                 Assert.Equal(cantidad, respuesta.GetProperty("eventos").GetArrayLength());
             }
+            chat = await client.PostAsJsonAsync("/api/ai/chat", new { mensaje = "Somos 3 personas. ¿Cuánto debemos tener en total para las entradas?", conversacionId = conversacion });
+            Assert.True(chat.IsSuccessStatusCode, await chat.Content.ReadAsStringAsync());
+            respuesta = await chat.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Contains("S/ 75.00", respuesta.GetProperty("respuesta").GetString());
+            chat = await client.PostAsJsonAsync("/api/ai/chat", new { mensaje = "Ahora tenemos un presupuesto total de 50 soles. ¿Alcanza?", conversacionId = conversacion });
+            Assert.True(chat.IsSuccessStatusCode, await chat.Content.ReadAsStringAsync());
+            respuesta = await chat.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Contains("S/ 25.00", respuesta.GetProperty("respuesta").GetString());
+            Assert.Empty(respuesta.GetProperty("eventos").EnumerateArray());
             await Token(org);
             Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/ai/chat", new { mensaje = "Ver conversación ajena", conversacionId = conversacion })).StatusCode);
 

@@ -47,11 +47,7 @@ builder.Services.AddScoped<IAsistentesService, AsistentesService>();
 builder.Services.AddScoped<IAiRepository, AiRepository>();
 builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddHttpClient<IModeloIA, OllamaModeloIA>(client =>
-{
-    client.BaseAddress = new Uri(_config["AI:Ollama:BaseUrl"] ?? "http://localhost:11434/");
-    client.Timeout = TimeSpan.FromMinutes(3);
-});
+builder.Services.AddHttpClient<IModeloIA, GeminiModeloIA>(client => client.Timeout = TimeSpan.FromMinutes(2));
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
