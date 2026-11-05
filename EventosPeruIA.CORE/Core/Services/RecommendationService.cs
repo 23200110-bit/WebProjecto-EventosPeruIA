@@ -20,14 +20,16 @@ public sealed class RecommendationService(IRecommendationRepository repository) 
             .Select(interaction => interaction.Evento!)
             .DistinctBy(evento => evento.EventoId)
             .ToArray();
-        var userVector = AverageVector(interactedEvents
-            .Select(evento => evento.EventosEmbeddings?.VectorEmbedding)
-            .Where(vector => vector is not null)
-            .Select(vector => vector!));
+        // Vectores del mismo tamaño pueden pertenecer a espacios semánticos diferentes.
+        var userVectors = interactedEvents
+            .GroupBy(evento => evento.EventosEmbeddings!.ModeloUsado)
+            .ToDictionary(group => group.Key,
+                group => AverageVector(group.Select(evento => evento.EventosEmbeddings!.VectorEmbedding)));
         var safeLimit = Math.Clamp(limit, 1, 50);
 
         return events
-            .Select(evento => Score(evento, user, interests, userVector))
+            .Select(evento => Score(evento, user, interests,
+                evento.EventosEmbeddings is { Vigente: true } embedding && userVectors.TryGetValue(embedding.ModeloUsado, out var vector) ? vector : null))
             .OrderByDescending(item => item.Score)
             .ThenBy(item => item.Event.FechaInicio)
             .Take(safeLimit)

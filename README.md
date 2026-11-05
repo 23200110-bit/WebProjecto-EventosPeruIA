@@ -82,7 +82,22 @@ Las consultas a PostgreSQL se implementan en los repositorios; los servicios
 aplican reglas de negocio y los controladores reciben y devuelven DTOs. Se utiliza
 el `PostgresContext` y las funciones de moderación y embeddings existentes, sin migraciones.
 
-Para el chat, instalar en Ollama los modelos `llama3.2` y `nomic-embed-text`.
+El chat usa **Gemini** de forma predeterminada. Configurar `AI:Gemini:ApiKey`
+en secretos de usuario de EventosPeruIA.API (en un servidor: `AI__Gemini__ApiKey`).
+Nunca guardar esa clave en Git ni en el frontend. No requiere Ollama.
+Los modelos predeterminados son `gemini-3.5-flash-lite` y `gemini-embedding-001`,
+configurables con `AI:Gemini:ChatModel` y `AI:Gemini:EmbeddingModel`.
+La disponibilidad gratuita depende de la cuota del proyecto de Google; un 429
+indica que se alcanzó el límite. No se activa facturación automáticamente.
+La información de eventos y el historial enviado para responder se procesan en Google.
+
+Los embeddings nuevos usan 768 dimensiones y un identificador que distingue
+proveedor/modelo/dimensión. Se generan al consultar eventos sin vectores compatibles;
+las funciones existentes mantienen el historial e invalidan la versión anterior.
+No hace falta borrar registros ni modificar el esquema de Supabase.
+
+Para volver a Ollama, configurar `AI:Provider` como `Ollama` e instalar
+los modelos `llama3.2` y `nomic-embed-text`.
 La dirección predeterminada es `http://localhost:11434/`; se puede sobrescribir
 con `AI__Ollama__BaseUrl`, `AI__Ollama__ChatModel` y `AI__Ollama__EmbeddingModel`.
 El body admite `mensaje` y, para continuar, el `conversacionId` devuelto anteriormente.
@@ -93,6 +108,8 @@ La prueba de integración requiere `EVENTOS_TEST_CONNECTION` con una conexión
 PostgreSQL del esquema del proyecto. Ejecutar `dotnet test`; crea datos sintéticos
 en una transacción y los revierte al terminar. De forma predeterminada sustituye
 el modelo por uno controlado; `EVENTOS_TEST_OLLAMA=1` utiliza Ollama real.
+`EVENTOS_TEST_GEMINI_KEY` habilita Gemini real para las pruebas del proveedor y
+la integración; omitir esta variable evita consumir cuota de Google.
 
 ## Frontend — Vue + Quasar
 

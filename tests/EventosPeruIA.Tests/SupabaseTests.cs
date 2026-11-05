@@ -28,6 +28,8 @@ public sealed class SupabaseFactory(NpgsqlConnection connection, NpgsqlTransacti
         builder.UseSetting("JWTSettings:SecretKey", "Synthetic-supabase-test-key-012345678901234567890123456789");
         builder.UseSetting("JWTSettings:Issuer", "EventosPeruIA");
         builder.UseSetting("JWTSettings:Audience", "EventosPeruIA.Cliente");
+        var geminiKey = Environment.GetEnvironmentVariable("EVENTOS_TEST_GEMINI_KEY");
+        if (!string.IsNullOrWhiteSpace(geminiKey)) builder.UseSetting("AI:Gemini:ApiKey", geminiKey);
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<PostgresContext>();
@@ -40,6 +42,12 @@ public sealed class SupabaseFactory(NpgsqlConnection connection, NpgsqlTransacti
                 return db;
             });
             if (!modeloReal) { services.RemoveAll<IModeloIA>(); services.AddSingleton<IModeloIA>(modelo); }
+            else if (!string.IsNullOrWhiteSpace(geminiKey))
+            {
+                services.AddHttpClient<GeminiModeloIA>(http => http.Timeout = TimeSpan.FromMinutes(2));
+                services.RemoveAll<IModeloIA>();
+                services.AddScoped<IModeloIA>(sp => new ModeloObservado(sp.GetRequiredService<GeminiModeloIA>(), SalidasIA));
+            }
             else
             {
                 services.AddHttpClient<OllamaModeloIA>(http => { http.BaseAddress = new Uri("http://localhost:11434/"); http.Timeout = TimeSpan.FromMinutes(2); });
@@ -62,7 +70,7 @@ public sealed class SupabaseTests
         try
         {
             var modelo = new ModeloPrueba { Filtros = "{\"ubicacion\":\"CIUDAD_PRUEBA_EDUARDO\"}" };
-            using var factory = new SupabaseFactory(connection, tx, modelo, Environment.GetEnvironmentVariable("EVENTOS_TEST_OLLAMA") == "1");
+            using var factory = new SupabaseFactory(connection, tx, modelo, Environment.GetEnvironmentVariable("EVENTOS_TEST_OLLAMA") == "1" || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("EVENTOS_TEST_GEMINI_KEY")));
             using var client = factory.CreateClient();
             client.Timeout = TimeSpan.FromMinutes(5);
             using var scope = factory.Services.CreateScope();
