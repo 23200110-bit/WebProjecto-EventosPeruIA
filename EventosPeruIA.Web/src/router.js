@@ -6,12 +6,14 @@ import Detail from './pages/Detail.vue'
 import Profile from './pages/Profile.vue'
 import Recommendations from './pages/Recommendations.vue'
 import Personal from './pages/Personal.vue'
+import Chat from './pages/Chat.vue'
 const router=createRouter({history:createWebHistory(import.meta.env.BASE_URL),routes:[
  {path:'/',component:Explore},{path:'/explorar',component:Explore},
  {path:'/evento/:id',component:Detail},
  {path:'/login',component:Auth},{path:'/registro',component:Auth},
  {path:'/perfil',component:Profile,meta:{auth:true}},
  {path:'/recomendaciones',component:Recommendations,meta:{auth:true}},
+ {path:'/asistente',component:Chat,meta:{auth:true}},
  {path:'/entradas',component:Personal,meta:{auth:true}},
  {path:'/avisos',component:Personal,meta:{auth:true}},
  {path:'/:pathMatch(.*)*',redirect:'/'}]})
