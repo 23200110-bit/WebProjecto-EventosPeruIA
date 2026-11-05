@@ -48,12 +48,6 @@ public sealed class SupabaseFactory(NpgsqlConnection connection, NpgsqlTransacti
                 services.RemoveAll<IModeloIA>();
                 services.AddScoped<IModeloIA>(sp => new ModeloObservado(sp.GetRequiredService<GeminiModeloIA>(), SalidasIA));
             }
-            else
-            {
-                services.AddHttpClient<OllamaModeloIA>(http => { http.BaseAddress = new Uri("http://localhost:11434/"); http.Timeout = TimeSpan.FromMinutes(2); });
-                services.RemoveAll<IModeloIA>();
-                services.AddScoped<IModeloIA>(sp => new ModeloObservado(sp.GetRequiredService<OllamaModeloIA>(), SalidasIA));
-            }
         });
     }
 }
@@ -70,7 +64,7 @@ public sealed class SupabaseTests
         try
         {
             var modelo = new ModeloPrueba { Filtros = "{\"ubicacion\":\"CIUDAD_PRUEBA_EDUARDO\"}" };
-            using var factory = new SupabaseFactory(connection, tx, modelo, Environment.GetEnvironmentVariable("EVENTOS_TEST_OLLAMA") == "1" || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("EVENTOS_TEST_GEMINI_KEY")));
+            using var factory = new SupabaseFactory(connection, tx, modelo, !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("EVENTOS_TEST_GEMINI_KEY")));
             using var client = factory.CreateClient();
             client.Timeout = TimeSpan.FromMinutes(5);
             using var scope = factory.Services.CreateScope();

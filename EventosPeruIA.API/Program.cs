@@ -47,16 +47,7 @@ builder.Services.AddScoped<IAsistentesService, AsistentesService>();
 builder.Services.AddScoped<IAiRepository, AiRepository>();
 builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddSingleton(TimeProvider.System);
-var proveedorIA = _config["AI:Provider"] ?? "Gemini";
-if (proveedorIA.Equals("Gemini", StringComparison.OrdinalIgnoreCase))
-    builder.Services.AddHttpClient<IModeloIA, GeminiModeloIA>(client => client.Timeout = TimeSpan.FromMinutes(2));
-else if (proveedorIA.Equals("Ollama", StringComparison.OrdinalIgnoreCase))
-    builder.Services.AddHttpClient<IModeloIA, OllamaModeloIA>(client =>
-{
-    client.BaseAddress = new Uri(_config["AI:Ollama:BaseUrl"] ?? "http://localhost:11434/");
-    client.Timeout = TimeSpan.FromMinutes(3);
-});
-else throw new InvalidOperationException("AI:Provider debe ser Gemini u Ollama.");
+builder.Services.AddHttpClient<IModeloIA, GeminiModeloIA>(client => client.Timeout = TimeSpan.FromMinutes(2));
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;

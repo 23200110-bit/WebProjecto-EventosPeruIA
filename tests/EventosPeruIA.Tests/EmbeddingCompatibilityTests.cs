@@ -16,9 +16,9 @@ public sealed class EmbeddingCompatibilityTests
         };
         var user = new Usuarios
         {
-            UsuarioEventoInteraccion = [new() { Evento = Event(1, "ollama", [1, 0]) }, new() { Evento = Event(2, "gemini", [0, 1]) }]
+            UsuarioEventoInteraccion = [new() { Evento = Event(1, "modelo-anterior", [1, 0]) }, new() { Evento = Event(2, "gemini", [0, 1]) }]
         };
-        var service = new RecommendationService(new Repository(user, [Event(3, "ollama", [0, 1]), Event(4, "gemini", [0, 1])]));
+        var service = new RecommendationService(new Repository(user, [Event(3, "modelo-anterior", [0, 1]), Event(4, "gemini", [0, 1])]));
         var result = await service.GetForUserAsync(1);
         Assert.Equal(0m, result.Single(e => e.EventId == 3).Score);
         Assert.True(result.Single(e => e.EventId == 4).Score > 0);
