@@ -139,6 +139,15 @@ public sealed class SupabaseTests
                 Assert.Contains(frase, respuesta.GetProperty("respuesta").GetString());
                 Assert.Equal(cantidad, respuesta.GetProperty("eventos").GetArrayLength());
             }
+            chat = await client.PostAsJsonAsync("/api/ai/chat", new { mensaje = "Somos 3 personas. ¿Cuánto debemos tener en total para las entradas?", conversacionId = conversacion });
+            Assert.True(chat.IsSuccessStatusCode, await chat.Content.ReadAsStringAsync());
+            respuesta = await chat.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Contains("S/ 75.00", respuesta.GetProperty("respuesta").GetString());
+            chat = await client.PostAsJsonAsync("/api/ai/chat", new { mensaje = "Ahora tenemos un presupuesto total de 50 soles. ¿Alcanza?", conversacionId = conversacion });
+            Assert.True(chat.IsSuccessStatusCode, await chat.Content.ReadAsStringAsync());
+            respuesta = await chat.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Contains("S/ 25.00", respuesta.GetProperty("respuesta").GetString());
+            Assert.Empty(respuesta.GetProperty("eventos").EnumerateArray());
             await Token(org);
             Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/ai/chat", new { mensaje = "Ver conversación ajena", conversacionId = conversacion })).StatusCode);
 

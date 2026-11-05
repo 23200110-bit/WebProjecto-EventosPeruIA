@@ -23,7 +23,12 @@ public sealed class AiService(IAiRepository repository, IModeloIA modelo, TimePr
         turnos.Add(new("user", request.Mensaje.Trim()));
         var ahora = clock.GetUtcNow().UtcDateTime;
         var actuales = await repository.EventosDisponibles(ahora, ct);
-        var filtrosTexto = await modelo.Responder(new List<TurnoChat>
+        var mencionadosAhora = actuales.Where(e => Palabras(request.Mensaje).Contains(Palabras(e.Nombre), StringComparison.Ordinal)).ToList();
+        var ultimaReferencia = historial.OrderByDescending(m => m.MensajeId).FirstOrDefault(m => m.Emisor == "Asistente" && m.EventosReferenciados?.Count > 0)?.EventosReferenciados;
+        var eventoDirecto = mencionadosAhora.Count == 1 ? mencionadosAhora[0]
+            : mencionadosAhora.Count == 0 && ultimaReferencia?.Count == 1 ? actuales.FirstOrDefault(e => e.EventoId == ultimaReferencia[0]) : null;
+        var calculo = eventoDirecto == null ? null : CalculoEntradas.Responder(eventoDirecto, turnos);
+        var filtrosTexto = calculo != null ? "{}" : await modelo.Responder(new List<TurnoChat>
         {
             new("system", "Extrae filtros explícitos de la consulta y su historial. Devuelve SOLO JSON: " +
                 "{\"ubicacion\":null,\"categoria\":null,\"desde\":null,\"hasta\":null,\"precioMaximo\":null}. " +
@@ -55,7 +60,7 @@ public sealed class AiService(IAiRepository repository, IModeloIA modelo, TimePr
         if (!string.IsNullOrWhiteSpace(filtros.Categoria) && !actuales.Any(e => Normalizar(e.Categoria) == Normalizar(filtros.Categoria)))
             filtros = filtros with { Categoria = null };
         var presupuesto = RespuestasPresupuesto.Ultimo(turnos);
-        if (presupuesto != null) filtros = filtros with { PrecioMaximo = presupuesto.Monto };
+        if (presupuesto != null && RespuestasPresupuesto.EsConsulta(request.Mensaje)) filtros = filtros with { PrecioMaximo = presupuesto.Monto };
         var sinLimiteDePrecio = actuales.Where(e => e.CuposDisponibles > 0
             && Coincide(e.Direccion, filtros.Ubicacion) && Coincide(e.Categoria, filtros.Categoria)
             && (!filtros.Desde.HasValue || DateOnly.FromDateTime(e.FechaInicio) >= filtros.Desde.Value)
@@ -70,7 +75,14 @@ public sealed class AiService(IAiRepository repository, IModeloIA modelo, TimePr
             .FirstOrDefault(m => m.Emisor == "Asistente" && m.EventosReferenciados?.Count > 0)?.EventosReferenciados;
         var objetivo = titulosMencionados.Count == 1 ? sinLimiteDePrecio.FirstOrDefault(e => e.EventoId == titulosMencionados[0].EventoId)
             : referenciados?.Count == 1 ? sinLimiteDePrecio.FirstOrDefault(e => e.EventoId == referenciados[0]) : null;
-        if (RespuestasPresupuesto.EsConsulta(request.Mensaje) && presupuesto != null && objetivo != null)
+        if (calculo != null && eventoDirecto != null)
+        {
+            respuesta = calculo.Texto;
+            objetivo = eventoDirecto;
+            referencias = [eventoDirecto.EventoId];
+            if (calculo.Recomendar) seleccionados.Add(eventoDirecto);
+        }
+        else if (RespuestasPresupuesto.EsConsulta(request.Mensaje) && presupuesto != null && objetivo != null)
         {
             respuesta = RespuestasPresupuesto.Responder(objetivo, presupuesto);
             referencias = [objetivo.EventoId];
@@ -111,7 +123,7 @@ public sealed class AiService(IAiRepository repository, IModeloIA modelo, TimePr
                     "Selecciona únicamente eventos que respondan a la última pregunta. Si ninguno coincide, indícalo y devuelve eventosIds vacío. " +
                     "No uses el historial como fuente de disponibilidad. Devuelve SOLO JSON {\"respuesta\":\"texto\",\"eventosIds\":[1,2]}. " +
                     "Responde con frases completas y explica la conclusión; nunca respondas únicamente Sí o No. " +
-                    "No escribas enlaces en respuesta: la API devuelve los enlaces verificados por separado. " +
+                    "Si ofreces una alternativa relacionada, explica que no es una coincidencia exacta y por qué se relaciona. No expongas términos internos como contexto actual. Para consultas ajenas a eventos, indica brevemente que ayudas a buscar eventos. No escribas enlaces en respuesta: la API devuelve los enlaces verificados por separado. " +
                     "CONTEXTO ACTUAL: " + JsonSerializer.Serialize(contexto))
             };
             mensajes.AddRange(turnos);

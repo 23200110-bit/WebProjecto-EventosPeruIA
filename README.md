@@ -108,6 +108,11 @@ La prueba de integración requiere `EVENTOS_TEST_CONNECTION` con una conexión
 PostgreSQL del esquema del proyecto. Ejecutar `dotnet test`; crea datos sintéticos
 en una transacción y los revierte al terminar. De forma predeterminada sustituye
 el modelo por uno controlado; `EVENTOS_TEST_OLLAMA=1` utiliza Ollama real.
+Los cálculos de entradas para un evento identificado se realizan en el servicio,
+con el precio y cupos actuales: cantidad en números o palabras, acompañantes,
+presupuesto total o por persona y seguimiento de cambios durante la conversación.
+Si el alcance del presupuesto o la cantidad son ambiguos, solicita aclaración.
+No supone descuentos, tarifas para menores, cargos extra ni tipos de cambio.
 `EVENTOS_TEST_GEMINI_KEY` habilita Gemini real para las pruebas del proveedor y
 la integración; omitir esta variable evita consumir cuota de Google.
 

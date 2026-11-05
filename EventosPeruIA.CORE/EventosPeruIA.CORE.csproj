@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <InternalsVisibleTo Include="EventosPeruIA.Tests" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Core\Settings\" />
