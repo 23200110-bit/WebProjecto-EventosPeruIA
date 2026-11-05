@@ -35,3 +35,30 @@ public class EventCatalogItem
     public string Status { get; set; } = "";
     public string? ImageUrl { get; set; }
 }
+
+
+//PARTE DE SANTIAGO
+public class EventDetailResponse
+{
+	public int Id { get; set; }
+	public string Name { get; set; } = string.Empty;
+	public string? Description { get; set; }
+	public string? ImageUrl { get; set; }
+	public int CategoryId { get; set; }
+	public string Category { get; set; } = string.Empty;
+	public string? Address { get; set; }
+	public string? City { get; set; }
+	public string? Venue { get; set; }
+	public string Organizer { get; set; } = string.Empty;
+	public DateTime StartDate { get; set; }
+	public DateTime? EndDate { get; set; }
+	public decimal Price { get; set; }
+	public string Currency { get; set; } = "PEN";
+	public string Status { get; set; } = string.Empty;
+
+	// Cálculo de aforo reactivo (US-006)
+	public int Capacity { get; set; }
+	public int SoldTickets { get; set; }
+	public int AvailableSpots { get; set; }
+	public bool IsSoldOut { get; set; }
+}
