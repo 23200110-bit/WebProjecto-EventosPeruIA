@@ -4,6 +4,7 @@ import es from 'quasar/lang/es'
 import '@quasar/extras/material-icons/material-icons.css'
 import 'quasar/dist/quasar.css'
 import './style.css'
+import './experience.css'
 import App from './App.vue'
 import router from './router'
-createApp(App).use(Quasar,{lang:es,config:{brand:{primary:'#245444',secondary:'#D97142',accent:'#EBE7DC'}}}).use(router).mount('#app')
+createApp(App).use(Quasar,{lang:es,config:{brand:{primary:'#5038B9',secondary:'#DAA540',accent:'#F0EAFE'}}}).use(router).mount('#app')
