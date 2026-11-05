@@ -19,19 +19,10 @@ public class CheckInService : ICheckInService
 		// 1. Buscar la entrada por UUID o Código Corto
 		var ticket = await _repository.GetTicketByCodeOrUuidAsync(request.EventoId, request.CodigoTicket);
 
+		// Si la entrada no existe, retornamos de inmediato sin registrar en Checkins
+		// para evitar violar la foreign key (fk_checkins_entrada) con un EntradaId inexistente
 		if (ticket == null)
 		{
-			await _repository.RegisterCheckInAsync(new Checkins
-			{
-				EventoId = request.EventoId,
-				ValidadoPorId = request.ValidadoPorId,
-				MetodoIngreso = request.MetodoIngreso,
-				Resultado = "Rechazado",
-				MotivoRechazo = "La entrada no existe o no pertenece a este evento.",
-				Dispositivo = request.Dispositivo,
-				FechaHora = DateTime.UtcNow
-			});
-
 			return new ValidateCheckInResponseDTO
 			{
 				Success = false,
