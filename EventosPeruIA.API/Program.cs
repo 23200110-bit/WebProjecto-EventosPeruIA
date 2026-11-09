@@ -7,7 +7,6 @@ using EventosPeruIA.CORE.Core.Services;
 using EventosPeruIA.CORE.Infrastructure.Data;
 using EventosPeruIA.CORE.Infrastructure.Repositories;
 using EventosPeruIA.CORE.Infrastructure.Shared;
-using EventosPeruIA.CORE.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,8 +34,11 @@ builder.Services.AddScoped<IEventCatalogRepository, EventCatalogRepository>();
 builder.Services.AddScoped<IEventCatalogService, EventCatalogService>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
 builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<IReportRepository, ReportRepository>();
-builder.Services.AddScoped<IReportService, ReportService>();
+builder.Services.AddScoped<IReporteRepository, ReporteRepository>();
+builder.Services.AddScoped<IReporteService, ReporteService>();
+// Inyección de dependencias para el módulo de Entradas
+builder.Services.AddScoped<IEntradaRepository, EntradaRepository>();
+builder.Services.AddScoped<IEntradaService, EntradaService>();
 
 // Registros de Santiago (US-012)
 builder.Services.AddScoped<ICheckInRepository, CheckInRepository>();
