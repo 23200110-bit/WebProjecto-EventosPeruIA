@@ -2,137 +2,124 @@
 using EventosPeruIA.CORE.Core.Interfaces;
 using EventosPeruIA.CORE.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace EventosPeruIA.CORE.Infrastructure.Repositories
 {
     public class EventoRepository : IEventoRepository
     {
-        private readonly PostgresContext _dbContext;
+        private readonly PostgresContext _context;
 
-        public EventoRepository(PostgresContext dbContext)
+        public EventoRepository(PostgresContext context)
         {
-            _dbContext = dbContext;
+            _context = context;
         }
 
-        public async Task<Eventos?> GetEventoById(int id)
+        public async Task<List<Eventos>> ListarEventosPublicadosAsync(int? categoriaId, string? ubicacion, DateTime? fecha)
         {
-            return await _dbContext.Eventos
+            var query = _context.Eventos
+                .Include(e => e.Categoria)
+                .Include(e => e.Organizador)
+                .AsNoTracking()
+                .Where(e => e.Estado == "Publicado" && e.EstadoModeracion == "Aprobado" && e.Organizador.Estado == "Activo");
+
+            if (categoriaId.HasValue)
+                query = query.Where(e => e.CategoriaId == categoriaId.Value);
+
+            if (!string.IsNullOrWhiteSpace(ubicacion))
+                query = query.Where(e => e.Direccion.Contains(ubicacion) || e.Ciudad.Contains(ubicacion));
+
+            if (fecha.HasValue)
+            {
+                var fechaUtc = DateTime.SpecifyKind(fecha.Value.Date, DateTimeKind.Utc);
+                query = query.Where(e => e.FechaInicio.Date == fechaUtc);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        public async Task<Eventos?> GetEventoByIdAsync(int id)
+        {
+            return await _context.Eventos
+                .Include(e => e.Categoria)
+                .Include(e => e.Organizador)
                 .FirstOrDefaultAsync(e => e.EventoId == id);
         }
 
-        public async Task<int> CreateEvento(Eventos evento)
+        public async Task<int> CreateEventoAsync(Eventos evento)
         {
-            await _dbContext.Eventos.AddAsync(evento);
-            var rows = await _dbContext.SaveChangesAsync();
-            return rows > 0 ? evento.EventoId : 0;
+            await _context.Eventos.AddAsync(evento);
+            await _context.SaveChangesAsync();
+            return evento.EventoId;
         }
 
-        public async Task<bool> UpdateEvento(Eventos evento)
+        public async Task<bool> UpdateEventoAsync(Eventos evento)
         {
-            var existing = await _dbContext.Eventos
-                .FirstOrDefaultAsync(e => e.EventoId == evento.EventoId);
+            _context.Eventos.Update(evento);
+            return await _context.SaveChangesAsync() > 0;
+        }
 
-            if (existing == null) return false;
+        public async Task<bool> CategoriaExistsAsync(int categoriaId)
+        {
+            return await _context.Categorias.AnyAsync(c => c.CategoriaId == categoriaId && c.Activo);
+        }
 
-            var cambioProgramacion = existing.FechaInicio != evento.FechaInicio
-                || existing.FechaFin != evento.FechaFin
-                || existing.Direccion != evento.Direccion;
+        public async Task<bool> MotivoCancelacionExistsAsync(int motivoCancelacionId)
+        {
+            return await _context.MotivosCancelacion.AnyAsync(m => m.MotivoCancelacionId == motivoCancelacionId);
+        }
 
-            var cambioContenido = cambioProgramacion
-                || existing.Nombre != evento.Nombre
-                || existing.Descripcion != evento.Descripcion
-                || existing.CategoriaId != evento.CategoriaId
-                || existing.Precio != evento.Precio;
+        public async Task<int> CountEntradasActivasAsync(int eventoId)
+        {
+            return await _context.Entradas
+                .CountAsync(e => e.EventoId == eventoId && (e.Estado == "Valida" || e.Estado == "Utilizada"));
+        }
 
-            existing.CategoriaId = evento.CategoriaId;
-            existing.Nombre = evento.Nombre;
-            existing.Descripcion = evento.Descripcion;
-            existing.FechaInicio = evento.FechaInicio;
-            existing.FechaFin = evento.FechaFin;
-            existing.Direccion = evento.Direccion;
-            existing.Latitud = evento.Latitud;
-            existing.Longitud = evento.Longitud;
-            existing.Aforo = evento.Aforo;
-            existing.Precio = evento.Precio;
-            existing.Estado = evento.Estado;
-            existing.FechaPublicacion = evento.FechaPublicacion;
-            existing.FechaActualizacion = DateTime.UtcNow;
-
-            if (cambioContenido)
+        public async Task InactivarEmbeddingsVigentesAsync(int eventoId)
+        {
+            var embeddings = await _context
+                .EventosEmbeddings.Where(x => x.EventoId == eventoId && x.Vigente)
+                .ToListAsync();
+            foreach (var embedding in embeddings)
             {
-                var embeddings = await _dbContext.EventosEmbeddings
-                    .Where(x => x.EventoId == existing.EventoId && x.Vigente)
-                    .ToListAsync();
-
-                foreach (var embedding in embeddings)
-                {
-                    embedding.Vigente = false;
-                }
+                embedding.Vigente = false;
             }
+            await _context.SaveChangesAsync();
+        }
 
-            if (cambioProgramacion)
-            {
-                var compradores = await _dbContext.Entradas
-                    .Where(x => x.EventoId == existing.EventoId && x.Estado == "Valida")
-                    .Select(x => x.CompradorId)
-                    .Distinct()
-                    .ToListAsync();
+        public async Task CrearNotificacionesCompradoresAsync(int eventoId, string tipo, string mensaje)
+        {
+            var compradores = await _context.Entradas
+                .Where(x => x.EventoId == eventoId && x.Estado == "Valida")
+                .Select(x => x.CompradorId)
+                .Distinct()
+                .ToListAsync();
 
-                foreach (var compradorId in compradores)
-                {
-                    await _dbContext.Notificaciones.AddAsync(new Notificaciones
-                    {
-                        UsuarioId = compradorId,
-                        EventoId = existing.EventoId,
-                        Tipo = "CambioEvento",
-                        Mensaje = $"El evento \"{existing.Nombre}\" tiene cambios en su fecha, hora o ubicación. Revisa los nuevos detalles."
-                    });
-                }
-            }
+            var notificaciones = compradores.Select(cId => new Notificaciones
+            {
+                UsuarioId = cId,
+                EventoId = eventoId,
+                Tipo = tipo,
+                Mensaje = mensaje
+            }).ToList();
 
-            try
+            if (notificaciones.Any())
             {
-                var rows = await _dbContext.SaveChangesAsync();
-                return rows > 0;
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                return false;
+                await _context.Notificaciones.AddRangeAsync(notificaciones);
+                await _context.SaveChangesAsync();
             }
         }
 
-        public async Task<bool> CancelEvento(int id, int userId, int motivoCancelacionId, string descripcionAdicional)
+        public async Task CancelarEntradasYMarcarReembolsoAsync(int eventoId)
         {
-            try
+            var entradas = await _context.Entradas
+                .Where(e => e.EventoId == eventoId && e.Estado == "Valida")
+                .ToListAsync();
+            foreach (var entrada in entradas)
             {
-                await _dbContext.Database.ExecuteSqlInterpolatedAsync(
-                    $"SELECT fn_cancelar_evento({id}, {userId}, {motivoCancelacionId}, {descripcionAdicional})");
-                return true;
+                entrada.Estado = "Anulada";
+                entrada.EstadoReembolso = "PendienteReembolso";
             }
-            catch (PostgresException)
-            {
-                return false;
-            }
-        }
-
-        public async Task<bool> CategoriaExists(int categoriaId)
-        {
-            return await _dbContext.Categorias
-                .AnyAsync(c => c.CategoriaId == categoriaId && c.Activo);
-        }
-
-        public async Task<bool> MotivoCancelacionExists(int motivoCancelacionId)
-        {
-            return await _dbContext.MotivosCancelacion
-                .AnyAsync(m => m.MotivoCancelacionId == motivoCancelacionId);
-        }
-
-        public async Task<int> CountEntradasActivas(int eventoId)
-        {
-            return await _dbContext.Entradas
-                .CountAsync(e => e.EventoId == eventoId
-                              && (e.Estado == "Valida" || e.Estado == "Utilizada"));
+            await _context.SaveChangesAsync();
         }
     }
 }
