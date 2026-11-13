@@ -42,5 +42,5 @@ public class AccountService : IAccountService
             user.Estado != "Activo" || user.BloqueadoHasta > DateTime.UtcNow) return null;
         return Map(user);
     }
-    private static AccountResponse Map(Usuarios u) => new AccountResponse { UserId = u.UsuarioId, FirstName = u.Nombres, LastName = u.Apellidos, Email = u.Correo, IsAdministrator = u.EsAdministrador };
+    private static AccountResponse Map(Usuarios u) => new AccountResponse { UserId = u.UsuarioId, FirstName = u.Nombres, LastName = u.Apellidos, Email = u.Correo, IsAdministrator = u.EsAdministrador, CredentialVersion = PasswordResetService.Hash(u.ContrasenaHash ?? "") };
 }
