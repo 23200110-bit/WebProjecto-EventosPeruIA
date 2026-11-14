@@ -10,6 +10,10 @@ using EventosPeruIA.CORE.Infrastructure.Shared;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsDevelopment()) {
+    builder.Configuration["PasswordReset:DeliveryMode"] ??= "Local";
+    builder.Configuration["PasswordReset:PublicResetUrl"] ??= "http://localhost:5279/recuperar-contrasena";
+}
 var _config = builder.Configuration;
 var cnx = _config.GetConnectionString("DevConnection");
 
@@ -54,7 +58,13 @@ builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<PurchaseService>();
 builder.Services.AddScoped<PasswordResetService>();
-builder.Services.AddTransient<IPasswordResetMail, SmtpPasswordResetMail>();
+builder.Services.AddTransient<IPasswordResetMail>(services => {
+    var config=services.GetRequiredService<IConfiguration>();
+    var mode=config["PasswordReset:DeliveryMode"]??"Smtp";
+    return mode.Equals("Local",StringComparison.OrdinalIgnoreCase)
+        ? ActivatorUtilities.CreateInstance<LocalPasswordResetMail>(services)
+        : ActivatorUtilities.CreateInstance<SmtpPasswordResetMail>(services);
+});
 builder.Services.AddHttpClient<IModeloIA, GeminiModeloIA>(client => client.Timeout = TimeSpan.FromMinutes(2));
 builder.Services.AddRateLimiter(options =>
 {

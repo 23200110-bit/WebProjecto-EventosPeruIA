@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Npgsql;
@@ -33,24 +34,29 @@ public class PurchasePasswordTests {
   public Task Send(string recipient,string resetUrl,CancellationToken ct){if(Fail)throw new IOException("Synthetic delivery failure");Links.Add(resetUrl);return Task.CompletedTask;}
   public string Token=>Uri.UnescapeDataString(new Uri(Links.Last()).Fragment[7..]);
  }
- sealed class Factory(Mail mail):WebApplicationFactory<Program> {
+ sealed class Factory(Mail mail,bool local=false,string? pickup=null):WebApplicationFactory<Program> {
   protected override void ConfigureWebHost(IWebHostBuilder b){
-   b.UseEnvironment("Testing");b.UseContentRoot("/work/EventosPeruIA.API");
+   b.UseEnvironment(local?"Development":"Testing");b.UseContentRoot("/work/EventosPeruIA.API");
    b.UseSetting("ConnectionStrings:DevConnection",Connection);b.UseSetting("JWTSettings:SecretKey",Secret);
    b.UseSetting("JWTSettings:Issuer","EventosPeruIA");b.UseSetting("JWTSettings:Audience","EventosPeruIA.Cliente");
-   b.UseSetting("PasswordReset:PublicResetUrl","https://eventos.example/reset-password");
-   b.ConfigureServices(s=>{s.RemoveAll<IPasswordResetMail>();s.AddSingleton<IPasswordResetMail>(mail);});
+   b.UseSetting("PasswordReset:PublicResetUrl",local?"http://localhost:5279/recuperar-contrasena":"https://eventos.example/reset-password");
+   if(local){b.UseSetting("PasswordReset:DeliveryMode","Local");b.UseSetting("PasswordReset:PickupDirectory",pickup);}
+   b.ConfigureServices(s=>{if(!local){s.RemoveAll<IPasswordResetMail>();s.AddSingleton<IPasswordResetMail>(mail);}});
   }
  }
  sealed class Scenario: IAsyncDisposable {
-  public Mail Mail=new();public Factory Factory=null!;public HttpClient Client=null!;public int Buyer;public int Other;public int Event;
+  public string? Pickup;public Mail Mail=new();public Factory Factory=null!;public HttpClient Client=null!;public int Buyer;public int Other;public int Event;
   public async ValueTask DisposeAsync(){Client.Dispose();await Factory.DisposeAsync();}
  }
- static async Task<Scenario> Setup(int capacity=10,decimal price=25m){
+ static async Task<Scenario> Setup(int capacity=10,decimal price=25m,bool local=false){
   var cs=new NpgsqlConnectionStringBuilder(Connection);
   if(cs.Database!="eventos_feature_test")throw new InvalidOperationException("Only disposable eventos_feature_test is permitted.");
+  await using(var bootstrap=new NpgsqlConnection(Connection)) {
+   await bootstrap.OpenAsync();
+   await new NpgsqlCommand("CREATE EXTENSION IF NOT EXISTS citext; CREATE EXTENSION IF NOT EXISTS unaccent; CREATE OR REPLACE FUNCTION public.fn_unaccent(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE AS 'SELECT public.unaccent(''public.unaccent'', $1)';",bootstrap).ExecuteNonQueryAsync();
+   await bootstrap.ReloadTypesAsync();
+  }
   await using var db=Db();
-  await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS citext; CREATE EXTENSION IF NOT EXISTS unaccent; CREATE OR REPLACE FUNCTION public.fn_unaccent(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE AS 'SELECT public.unaccent(''public.unaccent'', $1)';");
   if(!await db.Database.CanConnectAsync())throw new Exception("Disposable PostgreSQL unavailable");
   await using(var c=new NpgsqlConnection(Connection)){await c.OpenAsync();var exists=await new NpgsqlCommand("SELECT to_regclass('public.usuarios') IS NOT NULL",c).ExecuteScalarAsync();if(!(bool)exists!)await db.Database.ExecuteSqlRawAsync(db.Database.GenerateCreateScript());}
   await db.Database.ExecuteSqlRawAsync("TRUNCATE TABLE usuarios, categorias CASCADE");
@@ -60,7 +66,7 @@ public class PurchasePasswordTests {
   var cat=new Categorias{Nombre="Prueba"};db.AddRange(buyer,other,cat);await db.SaveChangesAsync();
   var e=new Eventos{OrganizadorId=other.UsuarioId,CategoriaId=cat.CategoriaId,Nombre="Evento sintético",Descripcion="Prueba",Direccion="Dirección",Ciudad="Lima",FechaInicio=DateTime.UtcNow.AddDays(5),Aforo=capacity,Precio=price,Moneda="PEN",Estado="Publicado",EstadoModeracion="Aprobado",FechaCreacion=DateTime.UtcNow,MaxEntradasPorCompra=5};
   db.Add(e);await db.SaveChangesAsync();
-  var s=new Scenario{Buyer=buyer.UsuarioId,Other=other.UsuarioId,Event=e.EventoId};s.Factory=new Factory(s.Mail);s.Client=s.Factory.CreateClient();return s;
+  var s=new Scenario{Buyer=buyer.UsuarioId,Other=other.UsuarioId,Event=e.EventoId};if(local)s.Pickup=Path.Combine(Path.GetTempPath(),"eventos-mail-"+Guid.NewGuid().ToString("N"));s.Factory=new Factory(s.Mail,local,s.Pickup);s.Client=s.Factory.CreateClient();return s;
  }
  static async Task SignIn(HttpClient c,string email="cliente@example.test",string password="OriginalPassword2026!"){
   var r=await c.PostAsJsonAsync("/api/auth/login",new{email,password});Assert.Equal(HttpStatusCode.OK,r.StatusCode);
@@ -156,6 +162,32 @@ public class PurchasePasswordTests {
   Assert.Equal(HttpStatusCode.OK,(await Reset(s,current)).StatusCode);
   Assert.Equal(HttpStatusCode.BadRequest,(await Reset(s,old)).StatusCode);
   Assert.All(await db.TokensRecuperacionContrasena.AsNoTracking().ToListAsync(),t=>Assert.True(t.Utilizado));
+ }
+
+ [FeaturePostgresFact]public async Task Pagina_recuperacion_anonima_sin_cache_y_sin_recursos_externos(){
+  await using var s=await Setup();var r=await s.Client.GetAsync("/recuperar-contrasena");
+  Assert.Equal(HttpStatusCode.OK,r.StatusCode);Assert.Contains("no-store",r.Headers.CacheControl!.ToString());
+  Assert.Contains("frame-ancestors 'none'",r.Headers.GetValues("Content-Security-Policy").Single());
+  var html=await r.Content.ReadAsStringAsync();Assert.Contains("request-form",html);Assert.Contains("reset-form",html);
+  Assert.DoesNotContain("<script src=",html);Assert.DoesNotContain("__NONCE__",html);
+ }
+ [FeaturePostgresFact]public async Task Buzon_local_real_entrega_enlace_y_recupera_sin_SMTP(){
+  await using var s=await Setup(local:true);await Forgot(s);
+  var files=Directory.GetFiles(s.Pickup!,"*.eml");Assert.Single(files);
+  var message=await File.ReadAllTextAsync(files[0]);var body=System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(message[(message.IndexOf("\r\n\r\n")+4)..].Trim()));
+  var url=body.Split('\n').Select(x=>x.Trim()).Single(x=>x.StartsWith("http://localhost:5279/recuperar-contrasena#token="));
+  var token=Uri.UnescapeDataString(new Uri(url).Fragment[7..]);
+  Assert.Equal(HttpStatusCode.OK,(await Reset(s,token)).StatusCode);await SignIn(s.Client,password:"ChangedPassword2026!");
+  if(!OperatingSystem.IsWindows())Assert.Equal(UnixFileMode.UserRead|UnixFileMode.UserWrite,File.GetUnixFileMode(files[0]));
+ }
+ [Fact]public void Buzon_local_rechazado_fuera_de_Development(){
+  var config=new Microsoft.Extensions.Configuration.ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string,string?>{{"PasswordReset:PickupDirectory",Path.GetTempPath()}}).Build();
+  var environment=new TestEnvironment{EnvironmentName="Production"};
+  Assert.Throws<InvalidOperationException>(()=>new LocalPasswordResetMail(config,environment).ValidateConfiguration());
+ }
+ sealed class TestEnvironment:Microsoft.Extensions.Hosting.IHostEnvironment {
+  public string EnvironmentName{get;set;}="Production";public string ApplicationName{get;set;}="Tests";public string ContentRootPath{get;set;}="/tmp";
+  public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider{get;set;}=new Microsoft.Extensions.FileProviders.NullFileProvider();
  }
 
 }

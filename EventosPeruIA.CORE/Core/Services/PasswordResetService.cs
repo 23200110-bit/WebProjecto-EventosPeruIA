@@ -10,10 +10,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 namespace EventosPeruIA.CORE.Core.Services;
-public sealed class PasswordResetService(PostgresContext db,IPasswordResetMail mail,TimeProvider clock,IConfiguration config,ILogger<PasswordResetService> log) {
+public sealed class PasswordResetService(PostgresContext db,IPasswordResetMail mail,TimeProvider clock,IConfiguration config,ILogger<PasswordResetService> log, Microsoft.Extensions.Hosting.IHostEnvironment environment) {
  public async Task Request(ForgotPasswordRequest request,CancellationToken ct) {
   Uri? url;
-  if(!Uri.TryCreate(config["PasswordReset:PublicResetUrl"],UriKind.Absolute,out url)||url.Scheme!="https"||!string.IsNullOrEmpty(url.Fragment)||!string.IsNullOrEmpty(url.Query))
+  if(!Uri.TryCreate(config["PasswordReset:PublicResetUrl"],UriKind.Absolute,out url)||!(url.Scheme=="https"||(environment.EnvironmentName=="Development"&&url.Scheme=="http"&&url.IsLoopback))||!string.IsNullOrEmpty(url.Fragment)||!string.IsNullOrEmpty(url.Query))
    throw new ProyectoException(503,"La recuperación por correo no está configurada.");
   try{mail.ValidateConfiguration();}catch(Exception ex)when(ex is InvalidOperationException or FormatException){throw new ProyectoException(503,"La recuperación por correo no está configurada.");}
   var email=request.Email.Trim().ToLowerInvariant();
