@@ -1,11 +1,8 @@
+using EventosPeruIA.CORE.Core.Interfaces;
 using System.Net;
 using System.Net.Mail;
 using Microsoft.Extensions.Configuration;
 namespace EventosPeruIA.CORE.Infrastructure.Shared;
-public interface IPasswordResetMail {
- void ValidateConfiguration();
- Task Send(string recipient,string resetUrl,CancellationToken ct);
-}
 public sealed class SmtpPasswordResetMail(IConfiguration config):IPasswordResetMail {
  public void ValidateConfiguration() {
   if(string.IsNullOrWhiteSpace(config["PasswordReset:Smtp:Host"])||string.IsNullOrWhiteSpace(config["PasswordReset:Smtp:From"]))

@@ -69,3 +69,28 @@ Ejemplo de configuración de Gmail (reemplazar valores en secretos locales, nunc
 Para una prueba en la misma computadora, Development puede mantener PublicResetUrl HTTP localhost y usar SMTP. Para que el enlace lo abra otro integrante desde su computadora, hace falta una URL HTTPS accesible y configurada; localhost no sirve fuera del equipo donde corre la API.
 
 Referencia de parámetros SMTP/TLS: https://knowledge.workspace.google.com/admin/gmail/send-email-from-a-printer-scanner-or-app?hl=es
+
+## Estructura por capas (requisito del curso)
+
+Se conserva el nombre del proyecto EventosPeruIA; UESAN.ECOMMERCE202602 es el ejemplo de estructura, no un cambio de nombre del producto.
+
+```text
+EventosPeruIA.API/
+  Controllers/PurchasesController.cs, PasswordResetController.cs, PasswordRecoveryPageController.cs
+  Program.cs                         # registro de dependencias
+EventosPeruIA.CORE/
+  Core/
+    DTOs/PurchaseResetDtos.cs
+    Entities/                        # entidades existentes, sin cambios de esquema
+    Interfaces/                      # IPurchaseService, IPasswordResetService,
+                                     # IPurchaseRepository, IPasswordResetRepository,
+                                     # IRepositoryTransaction, IPasswordResetMail
+    Services/PurchaseService.cs, PasswordResetService.cs
+  Infrastructure/
+    Data/PostgresContext.cs          # DbContext existente de PostgreSQL
+    Repositories/PurchaseRepository.cs, PasswordResetRepository.cs, RepositoryTransaction.cs
+    Shared/                          # transportes SMTP/buzón local existentes
+```
+
+Flujo: Controller -> IService -> Service -> IRepository -> Repository -> PostgresContext.
+Los servicios contienen las reglas de negocio; no importan Entity Framework ni Infrastructure ni ejecutan SQL. Los repositorios implementan la persistencia y los bloqueos de PostgreSQL. La transacción se mantiene durante toda la operación: venta + entradas juntas; recuperación + envío/consumo del token juntos. Al salir sin commit se revierte. Ambos repositorios y servicios son scoped para compartir el DbContext de la petición. Los controladores dependen de interfaces, registradas en Program.cs. No se refactorizan los módulos de los compañeros.

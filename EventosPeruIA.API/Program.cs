@@ -56,8 +56,10 @@ builder.Services.AddScoped<IAsistentesService, AsistentesService>();
 builder.Services.AddScoped<IAiRepository, AiRepository>();
 builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddScoped<PurchaseService>();
-builder.Services.AddScoped<PasswordResetService>();
+builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
+builder.Services.AddScoped<IPurchaseService, PurchaseService>();
+builder.Services.AddScoped<IPasswordResetRepository, PasswordResetRepository>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
 builder.Services.AddTransient<IPasswordResetMail>(services => {
     var config=services.GetRequiredService<IConfiguration>();
     var mode=config["PasswordReset:DeliveryMode"]??"Smtp";

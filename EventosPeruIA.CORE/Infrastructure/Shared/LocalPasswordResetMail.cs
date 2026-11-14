@@ -1,3 +1,4 @@
+using EventosPeruIA.CORE.Core.Interfaces;
 using System.Net.Mail;
 using System.Text;
 using Microsoft.Extensions.Configuration;
