@@ -31,9 +31,15 @@ namespace EventosPeruIA.CORE.Infrastructure.Shared
                         { context.Fail("Identidad inválida."); return; }
                         var db = context.HttpContext.RequestServices.GetRequiredService<PostgresContext>();
                         var user = await db.Usuarios.AsNoTracking().Where(u => u.UsuarioId == id)
-                            .Select(u => new { u.Estado, u.EsAdministrador }).SingleOrDefaultAsync(context.HttpContext.RequestAborted);
+                            .Select(u => new { u.Estado, u.EsAdministrador, u.ContrasenaHash }).SingleOrDefaultAsync(context.HttpContext.RequestAborted);
                         if (user == null || user.Estado != "Activo")
                         { context.Fail("La cuenta no está activa."); return; }
+                        var version=context.Principal?.FindFirst("credentialVersion")?.Value;
+                        if (!string.IsNullOrEmpty(version)) {
+                            if (version != EventosPeruIA.CORE.Core.Services.PasswordResetService.Hash(user.ContrasenaHash ?? ""))
+                            { context.Fail("La contraseña cambió. Inicia sesión nuevamente."); return; }
+                        } else if (await db.TokensRecuperacionContrasena.AnyAsync(t => t.UsuarioId == id && t.Utilizado && t.FechaUso != null, context.HttpContext.RequestAborted))
+                        { context.Fail("La contraseña cambió. Inicia sesión nuevamente."); return; }
                         var identity = (ClaimsIdentity)context.Principal!.Identity!;
                         foreach (var role in identity.FindAll(identity.RoleClaimType).ToList()) identity.RemoveClaim(role);
                         identity.AddClaim(new Claim(identity.RoleClaimType, user.EsAdministrador ? "Admin" : "User"));

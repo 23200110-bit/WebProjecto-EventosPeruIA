@@ -22,6 +22,7 @@ namespace EventosPeruIA.CORE.Infrastructure.Shared
             var claims = new[]
             {
                 new Claim("UserId", user.UserId.ToString()),
+                new Claim("credentialVersion", user.CredentialVersion),
                 new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
                 new Claim(ClaimTypes.Role, user.IsAdministrator ? "Admin" : "User")
             };

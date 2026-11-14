@@ -10,6 +10,10 @@ using EventosPeruIA.CORE.Infrastructure.Shared;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+if (builder.Environment.IsDevelopment()) {
+    builder.Configuration["PasswordReset:DeliveryMode"] ??= "Local";
+    builder.Configuration["PasswordReset:PublicResetUrl"] ??= "http://localhost:5279/recuperar-contrasena";
+}
 var _config = builder.Configuration;
 var cnx = _config.GetConnectionString("DevConnection");
 
@@ -52,10 +56,24 @@ builder.Services.AddScoped<IAsistentesService, AsistentesService>();
 builder.Services.AddScoped<IAiRepository, AiRepository>();
 builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
+builder.Services.AddScoped<IPurchaseService, PurchaseService>();
+builder.Services.AddScoped<IPasswordResetRepository, PasswordResetRepository>();
+builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
+builder.Services.AddTransient<IPasswordResetMail>(services => {
+    var config=services.GetRequiredService<IConfiguration>();
+    var mode=config["PasswordReset:DeliveryMode"]??"Smtp";
+    return mode.Equals("Local",StringComparison.OrdinalIgnoreCase)
+        ? ActivatorUtilities.CreateInstance<LocalPasswordResetMail>(services)
+        : ActivatorUtilities.CreateInstance<SmtpPasswordResetMail>(services);
+});
 builder.Services.AddHttpClient<IModeloIA, GeminiModeloIA>(client => client.Timeout = TimeSpan.FromMinutes(2));
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = 429;
+    options.AddPolicy("password-reset", context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit=5, Window=TimeSpan.FromMinutes(15), QueueLimit=0 }));
     options.AddPolicy("chat", context => RateLimitPartition.GetFixedWindowLimiter(
         context.User.FindFirst("UserId")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));

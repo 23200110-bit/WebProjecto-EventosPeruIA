@@ -20,6 +20,7 @@ public class AccountResponse
     public string LastName { get; set; } = "";
     public string Email { get; set; } = "";
     public bool IsAdministrator { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore] public string CredentialVersion { get; set; } = "";
 }
 public class LoginResponse
 {
