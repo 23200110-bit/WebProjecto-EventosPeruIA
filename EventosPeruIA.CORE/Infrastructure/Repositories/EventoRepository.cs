@@ -121,5 +121,32 @@ namespace EventosPeruIA.CORE.Infrastructure.Repositories
             }
             await _context.SaveChangesAsync();
         }
+        public async Task RegistrarEventoCancelacionAsync(int eventoId, int motivoCancelacionId, string descripcionAdicional, int canceladoPorId, int cantidadEntradasAfectadas)
+        {
+            var cancelacion = new EventosCancelacion
+            {
+                EventoId = eventoId,
+                MotivoCancelacionId = motivoCancelacionId,
+                DescripcionAdicional = descripcionAdicional.Trim(),
+                CanceladoPorId = canceladoPorId,
+                CantidadEntradasAfectadas = cantidadEntradasAfectadas,
+                MontoReembolsable = 0m,
+                FechaHora = DateTime.UtcNow
+            };
+
+            _context.EventosCancelacion.Add(cancelacion);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<Eventos>> ListarEventosPorOrganizadorAsync(int organizadorId)
+        {
+            return await _context.Eventos
+                .Include(e => e.Categoria)
+                .Include(e => e.Organizador)
+                .AsNoTracking()
+                .Where(e => e.OrganizadorId == organizadorId)
+                .OrderByDescending(e => e.FechaCreacion)
+                .ToListAsync();
+        }
     }
 }

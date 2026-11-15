@@ -24,6 +24,7 @@ namespace EventosPeruIA.CORE.Core.DTOs.Eventos
         public int Aforo { get; set; }
         public decimal Precio { get; set; }
         public string Estado { get; set; } = string.Empty;
+        public string EstadoModeracion { get; set; } = string.Empty;
         public string? ImagenUrl { get; set; }
         public string? NombreLugar { get; set; }
     }
