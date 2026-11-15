@@ -122,6 +122,26 @@ namespace EventosPeruIA.API.Controllers
             }
         }
 
+        [HttpGet("mis-eventos")]
+        public async Task<IActionResult> ListarMisEventos()
+        {
+            int userId = GetUserId();
+            var misEventos = await _eventoService.ListarMisEventosAsync(userId);
+            return Ok(misEventos);
+        }
+
+        [HttpGet("mis-eventos/{id}")]
+        public async Task<IActionResult> ObtenerMiEventoDetalle(int id)
+        {
+            int userId = GetUserId();
+            var detalle = await _eventoService.ObtenerMiEventoDetalleAsync(id, userId);
+            if (detalle == null)
+            {
+                return NotFound(new { message = $"El evento con ID {id} no existe o no pertenece a tu cuenta." });
+            }
+            return Ok(detalle);
+        }
+
         private int GetUserId()
         {
             var claim = User.FindFirst("UserId") ?? User.FindFirst("UsuarioId") ?? User.FindFirst(ClaimTypes.NameIdentifier);

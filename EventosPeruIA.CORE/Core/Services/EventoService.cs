@@ -71,6 +71,8 @@ namespace EventosPeruIA.CORE.Core.Services
                 Aforo = e.Aforo,
                 Precio = e.Precio,
                 Estado = e.Estado,
+                ImagenUrl = e.ImagenUrl,
+                NombreLugar = e.NombreLugar,
                 TicketsVendidos = entradasVendidas,
                 CuposDisponibles = cuposDisponibles,
                 Agotado = cuposDisponibles == 0
@@ -143,6 +145,8 @@ namespace EventosPeruIA.CORE.Core.Services
             existing.Longitud = dto.Longitud;
             existing.Aforo = dto.Aforo;
             existing.Precio = dto.Precio;
+            existing.ImagenUrl = dto.ImagenUrl;
+            existing.NombreLugar = dto.NombreLugar;
             existing.FechaActualizacion = DateTime.UtcNow;
 
             if (dto.Publicar && existing.Estado == "Borrador")
@@ -183,9 +187,9 @@ namespace EventosPeruIA.CORE.Core.Services
             if (!await _eventoRepository.MotivoCancelacionExistsAsync(dto.MotivoCancelacionId)) throw new ValidationException("El motivo de cancelación especificado no existe.");
 
             int entradasVendidas = await _eventoRepository.CountEntradasActivasAsync(id);
-            if (entradasVendidas > 0 && string.IsNullOrWhiteSpace(dto.DescripcionAdicional))
+            if (string.IsNullOrWhiteSpace(dto.DescripcionAdicional))
             {
-                throw new ValidationException("Para eventos con entradas vendidas es obligatorio ingresar una descripción justificada de la cancelación.");
+                throw new ValidationException("Es obligatorio ingresar una descripción justificada de la cancelación.");
             }
 
             existing.Estado = "Cancelado";
@@ -195,6 +199,13 @@ namespace EventosPeruIA.CORE.Core.Services
 
             if (cancelado)
             {
+                await _eventoRepository.RegistrarEventoCancelacionAsync(
+                    id,
+                    dto.MotivoCancelacionId,
+                    dto.DescripcionAdicional,
+                    userId,
+                    entradasVendidas
+                );
                 await _eventoRepository.InactivarEmbeddingsVigentesAsync(id);
                 await _eventoRepository.CancelarEntradasYMarcarReembolsoAsync(id);
                 await _eventoRepository.CrearNotificacionesCompradoresAsync(
@@ -230,6 +241,86 @@ namespace EventosPeruIA.CORE.Core.Services
 
             existing.FechaActualizacion = DateTime.UtcNow;
             return await _eventoRepository.UpdateEventoAsync(existing);
+        }
+
+        public async Task<List<EventoDetalleDto>> ListarMisEventosAsync(int userId)
+        {
+            var eventos = await _eventoRepository.ListarEventosPorOrganizadorAsync(userId);
+            var resultado = new List<EventoDetalleDto>();
+
+            foreach (var e in eventos)
+            {
+                int entradasVendidas = await _eventoRepository.CountEntradasActivasAsync(e.EventoId);
+                int cuposDisponibles = Math.Max(0, e.Aforo - entradasVendidas);
+
+                resultado.Add(new EventoDetalleDto
+                {
+                    EventoId = e.EventoId,
+                    OrganizadorId = e.OrganizadorId,
+                    Categoria = new CategoriaResumenDto
+                    {
+                        CategoriaId = e.CategoriaId,
+                        Nombre = e.Categoria?.Nombre ?? string.Empty
+                    },
+                    Nombre = e.Nombre,
+                    Descripcion = e.Descripcion,
+                    FechaInicio = e.FechaInicio,
+                    FechaFin = e.FechaFin,
+                    Direccion = e.Direccion,
+                    Ciudad = e.Ciudad,
+                    Latitud = e.Latitud,
+                    Longitud = e.Longitud,
+                    Aforo = e.Aforo,
+                    Precio = e.Precio,
+                    Estado = e.Estado,
+                    EstadoModeracion = e.EstadoModeracion ?? "Aprobado",
+                    ImagenUrl = e.ImagenUrl,
+                    NombreLugar = e.NombreLugar,
+                    TicketsVendidos = entradasVendidas,
+                    CuposDisponibles = cuposDisponibles,
+                    Agotado = cuposDisponibles == 0
+                });
+            }
+
+            return resultado;
+        }
+
+        public async Task<EventoDetalleDto?> ObtenerMiEventoDetalleAsync(int id, int userId)
+        {
+            var e = await _eventoRepository.GetEventoByIdAsync(id);
+            if (e == null || e.OrganizadorId != userId)
+                return null;
+
+            int entradasVendidas = await _eventoRepository.CountEntradasActivasAsync(id);
+            int cuposDisponibles = Math.Max(0, e.Aforo - entradasVendidas);
+
+            return new EventoDetalleDto
+            {
+                EventoId = e.EventoId,
+                OrganizadorId = e.OrganizadorId,
+                Categoria = new CategoriaResumenDto
+                {
+                    CategoriaId = e.CategoriaId,
+                    Nombre = e.Categoria?.Nombre ?? string.Empty
+                },
+                Nombre = e.Nombre,
+                Descripcion = e.Descripcion,
+                FechaInicio = e.FechaInicio,
+                FechaFin = e.FechaFin,
+                Direccion = e.Direccion,
+                Ciudad = e.Ciudad,
+                Latitud = e.Latitud,
+                Longitud = e.Longitud,
+                Aforo = e.Aforo,
+                Precio = e.Precio,
+                Estado = e.Estado,
+                EstadoModeracion = e.EstadoModeracion ?? "Aprobado",
+                ImagenUrl = e.ImagenUrl,
+                NombreLugar = e.NombreLugar,
+                TicketsVendidos = entradasVendidas,
+                CuposDisponibles = cuposDisponibles,
+                Agotado = cuposDisponibles == 0
+            };
         }
     }
 }

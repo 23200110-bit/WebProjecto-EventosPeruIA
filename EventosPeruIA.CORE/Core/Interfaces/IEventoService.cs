@@ -10,5 +10,7 @@ namespace EventosPeruIA.CORE.Core.Interfaces
         Task<bool> UpdateEventoAsync(int userId, EventoUpdateDto dto);
         Task<bool> CancelEventoAsync(int id, int userId, EventoCancelDto dto);
         Task<bool> PatchEventoAsync(int id, int userId, EventoPatchDto dto);
+        Task<List<EventoDetalleDto>> ListarMisEventosAsync(int userId);
+        Task<EventoDetalleDto?> ObtenerMiEventoDetalleAsync(int id, int userId);
     }
 }

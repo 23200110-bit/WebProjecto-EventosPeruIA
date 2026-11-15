@@ -14,5 +14,7 @@ namespace EventosPeruIA.CORE.Core.Interfaces
         Task InactivarEmbeddingsVigentesAsync(int eventoId);
         Task CrearNotificacionesCompradoresAsync(int eventoId, string tipo, string mensaje);
         Task CancelarEntradasYMarcarReembolsoAsync(int eventoId);
+        Task<List<Eventos>> ListarEventosPorOrganizadorAsync(int organizadorId);
+        Task RegistrarEventoCancelacionAsync(int eventoId, int motivoCancelacionId, string descripcionAdicional, int canceladoPorId, int cantidadEntradasAfectadas);
     }
 }
