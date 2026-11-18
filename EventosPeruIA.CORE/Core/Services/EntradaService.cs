@@ -26,7 +26,7 @@ namespace EventosPeruIA.CORE.Core.Services
 
             if (entrada == null)
             {
-                throw new ValidationException("La entrada especificada no existe.");
+                throw new KeyNotFoundException("La entrada especificada no existe.");
             }
 
             if (entrada.CompradorId != userId)
@@ -34,58 +34,96 @@ namespace EventosPeruIA.CORE.Core.Services
                 throw new UnauthorizedAccessException("Acceso denegado: No tienes permisos para consultar esta entrada.");
             }
 
-            bool esValida = string.Equals(entrada.Estado, "Valida", StringComparison.OrdinalIgnoreCase);
+            bool esValida = string.Equals(entrada.Estado, "Valida", StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(entrada.Evento?.Estado, "Cancelado", StringComparison.OrdinalIgnoreCase);
             bool esAnulada = string.Equals(entrada.Estado, "Anulada", StringComparison.OrdinalIgnoreCase);
 
+            string motivoCompleto = FormatearMotivoCancelacion(entrada.Evento?.EventosCancelacion);
             string mensajeReembolso = esAnulada
-                ? $"Anulada. Motivo: {entrada.Evento?.EventosCancelacion?.DescripcionAdicional ?? "Cancelación de evento"}. Pendiente de reembolso."
+                ? $"Pendiente de reembolso · Motivo: {motivoCompleto}"
                 : string.Empty;
 
             return new VoucherDetalleDto
             {
                 EntradaId = entrada.EntradaId,
+                EventoId = entrada.EventoId,
                 NombreEvento = entrada.Evento?.Nombre ?? string.Empty,
+                ImagenUrl = entrada.Evento?.ImagenUrl,
                 FechaYHora = entrada.Evento?.FechaInicio ?? DateTime.MinValue,
-                Ubicacion = string.IsNullOrWhiteSpace(entrada.Evento?.NombreLugar)
-                    ? entrada.Evento?.Direccion ?? string.Empty
-                    : $"{entrada.Evento.NombreLugar} - {entrada.Evento.Direccion}",
-                NombreTitular = string.IsNullOrWhiteSpace(entrada.TitularNombre)
-                    ? $"{entrada.Comprador?.Nombres} {entrada.Comprador?.Apellidos}"
-                    : entrada.TitularNombre,
+                Ciudad = entrada.Evento?.Ciudad ?? string.Empty,
+                Ubicacion = FormatearUbicacion(entrada.Evento),
+                NombreTitular = FormatearTitular(entrada),
                 MontoPagado = entrada.PrecioPagado,
-                EstadoEntrada = entrada.Estado,
+                EstadoEntrada = NormalizarEstado(entrada.Estado),
                 CodigoCorto = entrada.CodigoCorto ?? string.Empty,
                 QrPayload = esValida ? entrada.EntradaId.ToString() : string.Empty,
                 EstaActiva = esValida,
+                PendienteReembolso = esAnulada,
+                MotivoCancelacion = esAnulada ? motivoCompleto : null,
                 MensajeEstadoReembolso = mensajeReembolso
             };
         }
 
         private static EntradaDto MapToEntradaDto(Entradas entrada)
         {
-            bool esValida = string.Equals(entrada.Estado, "Valida", StringComparison.OrdinalIgnoreCase);
+            bool esValida = string.Equals(entrada.Estado, "Valida", StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(entrada.Evento?.Estado, "Cancelado", StringComparison.OrdinalIgnoreCase);
             bool esAnulada = string.Equals(entrada.Estado, "Anulada", StringComparison.OrdinalIgnoreCase);
+            string motivoCompleto = FormatearMotivoCancelacion(entrada.Evento?.EventosCancelacion);
 
             return new EntradaDto
             {
                 EntradaId = entrada.EntradaId,
                 EventoId = entrada.EventoId,
                 NombreEvento = entrada.Evento?.Nombre ?? string.Empty,
+                ImagenUrl = entrada.Evento?.ImagenUrl,
                 FechaEvento = entrada.Evento?.FechaInicio ?? DateTime.MinValue,
-                Ubicacion = string.IsNullOrWhiteSpace(entrada.Evento?.NombreLugar)
-                    ? entrada.Evento?.Direccion ?? string.Empty
-                    : $"{entrada.Evento.NombreLugar} - {entrada.Evento.Direccion}",
-                NombreTitular = string.IsNullOrWhiteSpace(entrada.TitularNombre)
-                    ? $"{entrada.Comprador?.Nombres} {entrada.Comprador?.Apellidos}"
-                    : entrada.TitularNombre,
+                Ciudad = entrada.Evento?.Ciudad ?? string.Empty,
+                Ubicacion = FormatearUbicacion(entrada.Evento),
+                NombreTitular = FormatearTitular(entrada),
                 Precio = entrada.PrecioPagado,
-                Estado = entrada.Estado,
+                Estado = NormalizarEstado(entrada.Estado),
+                EstadoEvento = entrada.Evento?.Estado ?? string.Empty,
                 CodigoCorto = entrada.CodigoCorto ?? string.Empty,
                 CodigoQrData = esValida ? entrada.EntradaId.ToString() : string.Empty,
                 QrDeshabilitado = !esValida,
-                MotivoCancelacion = entrada.Evento?.EventosCancelacion?.DescripcionAdicional,
+                MotivoCancelacion = esAnulada ? motivoCompleto : null,
                 PendienteReembolso = esAnulada
             };
+        }
+
+        private static string NormalizarEstado(string? estado)
+        {
+            if (string.Equals(estado, "Valida", StringComparison.OrdinalIgnoreCase)) return "Válida";
+            if (string.Equals(estado, "Utilizada", StringComparison.OrdinalIgnoreCase)) return "Utilizada";
+            if (string.Equals(estado, "Anulada", StringComparison.OrdinalIgnoreCase)) return "Anulada";
+            return estado ?? "Válida";
+        }
+
+        private static string FormatearUbicacion(Eventos? evento)
+        {
+            if (evento == null) return string.Empty;
+            if (string.IsNullOrWhiteSpace(evento.NombreLugar)) return evento.Direccion ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(evento.Direccion)) return evento.NombreLugar;
+            return $"{evento.NombreLugar}, {evento.Direccion}";
+        }
+
+        private static string FormatearTitular(Entradas entrada)
+        {
+            if (!string.IsNullOrWhiteSpace(entrada.TitularNombre)) return entrada.TitularNombre;
+            return $"{entrada.Comprador?.Nombres} {entrada.Comprador?.Apellidos}".Trim();
+        }
+
+        private static string FormatearMotivoCancelacion(EventosCancelacion? cancelacion)
+        {
+            if (cancelacion == null) return "Cancelación del evento por el organizador.";
+            var nombreMotivo = cancelacion.MotivoCancelacion?.Descripcion;
+            var descripcion = cancelacion.DescripcionAdicional;
+
+            if (!string.IsNullOrWhiteSpace(nombreMotivo) && !string.IsNullOrWhiteSpace(descripcion))
+                return $"{nombreMotivo}: {descripcion}";
+
+            return descripcion ?? nombreMotivo ?? "Cancelación del evento por el organizador.";
         }
     }
 }

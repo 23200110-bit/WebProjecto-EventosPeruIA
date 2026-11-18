@@ -207,12 +207,12 @@ namespace EventosPeruIA.CORE.Core.Services
                     entradasVendidas
                 );
                 await _eventoRepository.InactivarEmbeddingsVigentesAsync(id);
-                await _eventoRepository.CancelarEntradasYMarcarReembolsoAsync(id);
                 await _eventoRepository.CrearNotificacionesCompradoresAsync(
                     id,
                     "CancelacionEvento",
                     $"El evento \"{existing.Nombre}\" ha sido cancelado. Motivo registrado: {dto.DescripcionAdicional}"
                 );
+                await _eventoRepository.CancelarEntradasYMarcarReembolsoAsync(id);
             }
 
             return cancelado;
