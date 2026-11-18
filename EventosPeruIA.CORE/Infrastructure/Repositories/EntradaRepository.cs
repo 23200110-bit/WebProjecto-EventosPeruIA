@@ -20,6 +20,7 @@ namespace EventosPeruIA.CORE.Infrastructure.Repositories
                 .AsNoTracking()
                 .Include(entrada => entrada.Evento)
                     .ThenInclude(evento => evento.EventosCancelacion)
+                        .ThenInclude(cancelacion => cancelacion!.MotivoCancelacion)
                 .Include(entrada => entrada.Comprador)
                 .Where(entrada => entrada.CompradorId == userId)
                 .OrderByDescending(entrada => entrada.FechaEmision)
@@ -32,6 +33,7 @@ namespace EventosPeruIA.CORE.Infrastructure.Repositories
                 .AsNoTracking()
                 .Include(entrada => entrada.Evento)
                     .ThenInclude(evento => evento.EventosCancelacion)
+                        .ThenInclude(cancelacion => cancelacion!.MotivoCancelacion)
                 .Include(entrada => entrada.Comprador)
                 .SingleOrDefaultAsync(entrada => entrada.EntradaId == entradaId);
         }

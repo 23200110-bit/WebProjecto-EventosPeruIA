@@ -1,4 +1,5 @@
-﻿using EventosPeruIA.CORE.Core.Interfaces;
+﻿using System.Security.Claims;
+using EventosPeruIA.CORE.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -27,15 +28,29 @@ namespace EventosPeruIA.API.Controllers
         [HttpGet("{id:guid}/voucher")]
         public async Task<IActionResult> GetVoucher(Guid id)
         {
-            int userId = GetUserIdFromClaims();
-            var voucher = await _entradaService.GetVoucherByEntradaIdAsync(id, userId);
-            return Ok(voucher);
+            try
+            {
+                int userId = GetUserIdFromClaims();
+                var voucher = await _entradaService.GetVoucherByEntradaIdAsync(id, userId);
+                return Ok(voucher);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, new { message = ex.Message });
+            }
         }
 
         private int GetUserIdFromClaims()
         {
-            var userIdClaim = User.FindFirst("UserId")?.Value;
-            if (!int.TryParse(userIdClaim, out var userId))
+            var claim = User.FindFirst("UserId")
+                        ?? User.FindFirst("UsuarioId")
+                        ?? User.FindFirst(ClaimTypes.NameIdentifier);
+
+            if (claim == null || !int.TryParse(claim.Value, out var userId))
             {
                 throw new UnauthorizedAccessException("Usuario no autenticado o token inválido.");
             }
