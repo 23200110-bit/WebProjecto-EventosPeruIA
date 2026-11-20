@@ -67,6 +67,16 @@ builder.Services.AddTransient<IPasswordResetMail>(services => {
         ? ActivatorUtilities.CreateInstance<LocalPasswordResetMail>(services)
         : ActivatorUtilities.CreateInstance<SmtpPasswordResetMail>(services);
 });
+builder.Services.AddTransient<IEmailSender>(services => {
+    var config=services.GetRequiredService<IConfiguration>();
+    var mode=config["Email:DeliveryMode"]??config["PasswordReset:DeliveryMode"]??"Local";
+    return mode.Equals("Smtp",StringComparison.OrdinalIgnoreCase)
+        ? ActivatorUtilities.CreateInstance<SmtpEmailSender>(services)
+        : ActivatorUtilities.CreateInstance<LocalEmailSender>(services);
+});
+builder.Services.AddScoped<ITicketMailService, TicketMailService>();
+builder.Services.AddHttpClient<IGoogleTokenValidator, GoogleTokenValidator>(client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddHttpClient<IModeloIA, GeminiModeloIA>(client => client.Timeout = TimeSpan.FromMinutes(2));
 builder.Services.AddRateLimiter(options =>
 {
