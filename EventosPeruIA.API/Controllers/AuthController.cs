@@ -33,5 +33,13 @@ namespace EventosPeruIA.API.Controllers
             if (user == null) return Unauthorized(new { message = "Correo o contraseña incorrectos" });
             return Ok(new LoginResponse { AccessToken = _jwtService.GenerateJWToken(user), User = user });
         }
+
+        [HttpPost("google")]
+        public async Task<IActionResult> Google(GoogleLoginRequest request, [FromServices] IGoogleAuthService google, CancellationToken ct)
+        {
+            var user = await google.LoginAsync(request, ct);
+            if (user == null) return Unauthorized(new { message = "No se pudo iniciar sesión con Google" });
+            return Ok(new LoginResponse { AccessToken = _jwtService.GenerateJWToken(user), User = user });
+        }
     }
 }

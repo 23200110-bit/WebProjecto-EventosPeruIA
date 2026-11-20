@@ -13,6 +13,10 @@ public sealed class LoginRequest
     [Required, EmailAddress, StringLength(254)] public string Email { get; set; } = "";
     [Required, StringLength(128)] public string Password { get; set; } = "";
 }
+public sealed class GoogleLoginRequest
+{
+    [Required, StringLength(4096)] public string IdToken { get; set; } = "";
+}
 public class AccountResponse
 {
     public int UserId { get; set; }
