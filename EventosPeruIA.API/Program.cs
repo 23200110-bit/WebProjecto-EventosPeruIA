@@ -126,7 +126,22 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
+app.MapGet("/health", HealthCheck);
 
 app.Run();
+
+static async Task<IResult> HealthCheck(PostgresContext db, CancellationToken ct)
+{
+    try
+    {
+        if (await db.Database.CanConnectAsync(ct))
+            return Results.Ok(new { status = "ok" });
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Npgsql.NpgsqlException)
+    {
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+}
 
 public partial class Program { }

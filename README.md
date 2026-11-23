@@ -30,7 +30,12 @@ RAG:
 - Este backend es .NET y conserva el cliente HTTP REST de Gemini existente; el paquete JavaScript `@google/genai` no aplica a este proyecto.
 - Configura `AI:Gemini:RagChatModel` (predeterminado `gemini-4-hydrogen`) y `AI:Gemini:AdminModel` (predeterminado `gemini-4-neon`) si el proyecto tiene acceso a esos modelos.
 - El agente restringido a administradores está en `POST /api/admin/agent`. Mantiene la autenticación JWT y el rol `Admin` existentes; no usa Supabase Auth.
-- Para propuestas automáticas como PR draft, configura `GITHUB_TOKEN` como variable de entorno y `AdminAgent:GitHub:FrontendRepository` (`owner/repo`). El backend usa el repositorio actual por defecto. Un archivo `.env` no se carga automáticamente en ASP.NET Core. El token requiere permiso de contenido y pull requests; las propuestas nunca se fusionan automáticamente.
+- Para habilitar actualizaciones autónomas en local, inicia el backend mediante `scripts/run-local-agent.ps1`. El agente solo modifica `.cs` versionados en API/CORE; ejecuta `dotnet test` y `dotnet build`, revierte si fallan, y el supervisor reinicia/verifica `/health`, también con rollback si no queda sano.
+- El runner local debe permanecer abierto y tener las variables de entorno/secretos de desarrollo configurados. Sin el runner, la herramienta de actualización permanece deshabilitada.
+
+```powershell
+.\scripts\run-local-agent.ps1
+```
 
 Frontend:
 

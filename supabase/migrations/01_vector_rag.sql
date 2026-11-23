@@ -159,11 +159,15 @@ create table if not exists public.admin_code_patches (
     target_repo text not null check (target_repo in ('frontend', 'backend')),
     file_path text not null,
     diff_content text not null,
+    original_content text,
+    validation_output text,
     pr_url text,
     status text not null default 'pending'
         check (status in ('pending', 'approved', 'rejected'))
 );
 
+alter table public.admin_code_patches add column if not exists original_content text;
+alter table public.admin_code_patches add column if not exists validation_output text;
 alter table public.document_sections enable row level security;
 alter table public.admin_code_patches enable row level security;
 revoke all on public.document_sections, public.admin_code_patches from anon, authenticated;

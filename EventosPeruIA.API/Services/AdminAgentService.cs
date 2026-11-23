@@ -1,5 +1,5 @@
+using System.Diagnostics;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -42,10 +42,11 @@ public sealed class AdminAgentService(
                 {
                     parts = new[]
                     {
-                        new { text = "Eres un agente de diagnóstico de EventosPeruIA. Usa herramientas para consultar datos concretos. " +
-                                     "Solo puedes reindexar embeddings, nunca ejecutar SQL arbitrario ni modificar producción. " +
-                                     "Los cambios de código se guardan como propuestas y, si está configurado, se envían como un pull request draft para revisión humana. " +
-                                     "No afirmes que una acción tuvo éxito si la herramienta no lo confirmó." }
+                        new { text = "Eres el agente local de mantenimiento de EventosPeruIA. Diagnostica con las herramientas disponibles. " +
+                                     "Puedes reindexar embeddings. Para corregir bugs, genera un reemplazo de un archivo C# del backend y un diff: " +
+                                     "la herramienta lo aplicará al checkout local, ejecutará todas las pruebas y compilará la API. " +
+                                     "Solo se conservará el cambio si ambas validaciones pasan; el supervisor reiniciará el backend y hará un health check, " +
+                                     "restaurando el archivo anterior si el proceso nuevo no está sano. Nunca ejecutes SQL arbitrario ni afirmes éxito si una herramienta falla." }
                     }
                 },
                 contents = messages,
@@ -90,8 +91,17 @@ public sealed class AdminAgentService(
                 var args = call.TryGetProperty("args", out var arguments) ? arguments : default;
                 var result = await ExecuteTool(name, args, ct);
                 executed.Add(name);
-                if (name == "propose_code_fix")
-                    latestPatch = JsonSerializer.Deserialize<AdminProposedPatch>(result.GetProperty("patch").GetRawText(), JsonOptions);
+
+                if (name == "apply_code_fix" && result.GetProperty("success").GetBoolean())
+                {
+                    latestPatch = JsonSerializer.Deserialize<AdminProposedPatch>(
+                        result.GetProperty("patch").GetRawText(), JsonOptions);
+                    var restart = JsonSerializer.Deserialize<LocalAgentRestartManifest>(
+                        result.GetProperty("restart").GetRawText(), JsonOptions);
+                    return new("El parche pasó las pruebas y la compilación. El supervisor local reiniciará el backend y comprobará /health.",
+                        executed, latestPatch, restart);
+                }
+
                 toolResponses.Add(new
                 {
                     functionResponse = new { name, response = new { result } }
@@ -101,6 +111,23 @@ public sealed class AdminAgentService(
         }
 
         throw new ProyectoException(502, "El agente superó el límite de llamadas a herramientas.");
+    }
+
+    public async Task SignalRestartAsync(LocalAgentRestartManifest manifest)
+    {
+        try
+        {
+            var signalPath = RestartSignalPath();
+            var current = await ReadManifest(signalPath, CancellationToken.None);
+            if (current.PatchId != manifest.PatchId || current.State != "validated")
+                throw new InvalidOperationException("The local restart manifest changed unexpectedly.");
+            await WriteManifest(signalPath, current with { State = "restart_pending" }, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Could not signal local restart for admin patch {PatchId}.", manifest.PatchId);
+            await RestoreAndReject(manifest, "No se pudo solicitar el reinicio local; se restauró el archivo original.");
+        }
     }
 
     private async Task<JsonElement> ExecuteTool(string name, JsonElement args, CancellationToken ct)
@@ -120,8 +147,8 @@ public sealed class AdminAgentService(
                 return JsonSerializer.SerializeToElement(new
                 {
                     unvectorizedSections = pending,
-                    pendingCodePatches = patches,
-                    note = "Los logs de aplicación no se almacenan en una tabla consultable por este agente."
+                    pendingPatches = patches,
+                    note = "Los logs de aplicación no se guardan en una tabla consultable por el agente."
                 });
             }
             case "execute_admin_db_action":
@@ -133,143 +160,270 @@ public sealed class AdminAgentService(
                     "UPDATE public.document_sections SET embedding = NULL WHERE embedding IS NOT NULL", ct);
                 return JsonSerializer.SerializeToElement(new { action, sectionsQueued = changed });
             }
-            case "propose_code_fix":
-                return await ProposePatch(args, ct);
+            case "apply_code_fix":
+                return await ApplyAndValidate(args, ct);
             default:
                 throw new ProyectoException(400, "Herramienta administrativa desconocida.");
         }
     }
 
-    private async Task<JsonElement> ProposePatch(JsonElement args, CancellationToken ct)
+    private async Task<JsonElement> ApplyAndValidate(JsonElement args, CancellationToken ct)
     {
+        if (!string.Equals(config["AdminAgent:LocalSupervisorEnabled"], "true", StringComparison.OrdinalIgnoreCase))
+            throw new ProyectoException(503, "Inicia el backend con scripts/run-local-agent.ps1 para habilitar actualizaciones autónomas.");
+
         var summary = RequiredString(args, "error_summary");
         var target = RequiredString(args, "target_repo");
         var path = RequiredString(args, "file_path");
         var correctedContent = RequiredString(args, "corrected_content");
         var diff = RequiredString(args, "diff_content");
-        if (target is not ("frontend" or "backend") || !ValidRelativePath(path) ||
-            path.Length > 512 || summary.Length > 1000 || correctedContent.Length > 500_000 || diff.Length > 500_000)
-            throw new ProyectoException(400, "La propuesta de código contiene valores inválidos.");
+        if (target != "backend" || !ValidRelativePath(path) || path.Length > 512 ||
+            summary.Length > 1000 || correctedContent.Length > 500_000 || diff.Length > 500_000)
+            throw new ProyectoException(400, "El parche debe ser un archivo C# del backend y respetar los límites permitidos.");
 
+        var root = Path.GetFullPath(config["AdminAgent:WorkspaceRoot"]
+            ?? throw new ProyectoException(503, "No está configurado AdminAgent:WorkspaceRoot."));
+        var targetPath = Path.GetFullPath(Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar)));
+        var relative = Path.GetRelativePath(root, targetPath);
+        if (relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            Path.IsPathRooted(relative) || !File.Exists(targetPath) || HasReparsePoint(root, targetPath))
+            throw new ProyectoException(400, "La ruta del parche queda fuera del checkout o no es un archivo regular.");
+        if (!path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ||
+            !(path.StartsWith("EventosPeruIA.API/", StringComparison.Ordinal) ||
+              path.StartsWith("EventosPeruIA.CORE/", StringComparison.Ordinal)))
+            throw new ProyectoException(400, "Solo se pueden actualizar archivos C# de API o CORE.");
+        if (ProtectedAgentFiles.Contains(path))
+            throw new ProyectoException(403, "El agente no puede modificar sus propios controles de seguridad ni el arranque del host.");
+
+        var gitRoot = await RunCommand("git", ["rev-parse", "--show-toplevel"], root, ct);
+        if (gitRoot.ExitCode != 0 || !PathEquals(root, gitRoot.Output.Trim()))
+            throw new ProyectoException(503, "WorkspaceRoot debe ser la raíz de un checkout Git.");
+        var tracked = await RunCommand("git", ["ls-files", "--error-unmatch", "--", path], root, ct);
+        if (tracked.ExitCode != 0)
+            throw new ProyectoException(400, "El agente solo puede modificar archivos ya versionados.");
+        var restartToken = config["AdminAgent:RestartToken"];
+        if (string.IsNullOrWhiteSpace(restartToken) ||
+            !string.Equals(restartToken, config["AdminAgent:SupervisorToken"], StringComparison.Ordinal))
+            throw new ProyectoException(503, "El token del supervisor local no está configurado correctamente.");
+
+        var original = await File.ReadAllTextAsync(targetPath, ct);
+        if (string.Equals(original, correctedContent, StringComparison.Ordinal))
+            throw new ProyectoException(400, "El parche no cambia el archivo.");
+
+        var patchId = await InsertPatch(summary, target, path, diff, original, ct);
+        var manifest = new LocalAgentRestartManifest(patchId, root, path,
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(original)), "validating");
+        var manifestPath = RestartSignalPath();
+        var applied = false;
+        var manifestWritten = false;
+        try
+        {
+            await WriteManifest(manifestPath, manifest, ct);
+            manifestWritten = true;
+            await AtomicWrite(targetPath, correctedContent, ct);
+            applied = true;
+            var tests = await RunCommand("dotnet",
+                ["test", "ProyectoFinalWeb-EeventosPeruIA.slnx", "--no-restore"], root, ct);
+            var build = tests.ExitCode == 0
+                ? await RunCommand("dotnet",
+                    ["build", "EventosPeruIA.API/EventosPeruIA.API.csproj", "--no-restore"], root, ct)
+                : new ProcessResult(tests.ExitCode, "");
+            var output = SanitizeOutput($"TESTS (exit {tests.ExitCode})\n{tests.Output}\nBUILD (exit {build.ExitCode})\n{build.Output}");
+            if (tests.ExitCode != 0 || build.ExitCode != 0)
+            {
+                await AtomicWrite(targetPath, original, ct);
+                applied = false;
+                await UpdatePatch(patchId, "rejected", output, ct);
+                File.Delete(manifestPath);
+                return JsonSerializer.SerializeToElement(new
+                {
+                    success = false,
+                    error = "Las pruebas o la compilación fallaron; el archivo se restauró.",
+                    output,
+                    patch = new AdminProposedPatch(patchId, target, path, diff, null, "rejected")
+                });
+            }
+
+            manifest = manifest with { State = "validated" };
+            await WriteManifest(manifestPath, manifest, ct);
+            await UpdatePatch(patchId, "pending", output, ct);
+            return JsonSerializer.SerializeToElement(new
+            {
+                success = true,
+                output,
+                patch = new AdminProposedPatch(patchId, target, path, diff, null, "pending"),
+                restart = manifest
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            if (applied) await AtomicWrite(targetPath, original, CancellationToken.None);
+            await UpdatePatch(patchId, "rejected", "La validación fue cancelada; se restauró el archivo original.", CancellationToken.None);
+            if (manifestWritten && File.Exists(manifestPath)) File.Delete(manifestPath);
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Local patch validation failed for admin patch {PatchId}.", patchId);
+            if (applied) await AtomicWrite(targetPath, original, CancellationToken.None);
+            await UpdatePatch(patchId, "rejected", SanitizeOutput(exception.Message), CancellationToken.None);
+            if (manifestWritten && File.Exists(manifestPath)) File.Delete(manifestPath);
+            return JsonSerializer.SerializeToElement(new
+            {
+                success = false,
+                error = "No se pudo validar el parche y el archivo se restauró.",
+                output = SanitizeOutput(exception.Message),
+                patch = new AdminProposedPatch(patchId, target, path, diff, null, "rejected")
+            });
+        }
+    }
+
+    private async Task RestoreAndReject(LocalAgentRestartManifest manifest, string reason)
+    {
+        var root = Path.GetFullPath(manifest.WorkspaceRoot);
+        var file = Path.GetFullPath(Path.Combine(root, manifest.FilePath.Replace('/', Path.DirectorySeparatorChar)));
+        var relative = Path.GetRelativePath(root, file);
+        if (relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            Path.IsPathRooted(relative))
+            throw new InvalidOperationException("The local restart manifest points outside the workspace.");
+        await AtomicWrite(file, Encoding.UTF8.GetString(Convert.FromBase64String(manifest.OriginalContentBase64)), CancellationToken.None);
+        await UpdatePatch(manifest.PatchId, "rejected", reason, CancellationToken.None);
+        var path = RestartSignalPath();
+        if (File.Exists(path)) File.Delete(path);
+    }
+
+    private async Task<long> InsertPatch(string summary, string target, string path, string diff, string original, CancellationToken ct)
+    {
         var connection = db.Database.GetDbConnection();
         await db.Database.OpenConnectionAsync(ct);
-        long id;
         try
         {
             await using var command = connection.CreateCommand();
             command.CommandText = """
                 INSERT INTO public.admin_code_patches
-                    (error_summary, target_repo, file_path, diff_content)
-                VALUES (@summary, @target, @path, @diff)
+                    (error_summary, target_repo, file_path, diff_content, original_content)
+                VALUES (@summary, @target, @path, @diff, @original)
                 RETURNING id
                 """;
             command.Parameters.Add(new NpgsqlParameter("summary", summary));
             command.Parameters.Add(new NpgsqlParameter("target", target));
             command.Parameters.Add(new NpgsqlParameter("path", path));
             command.Parameters.Add(new NpgsqlParameter("diff", diff));
-            id = Convert.ToInt64(await command.ExecuteScalarAsync(ct));
+            command.Parameters.Add(new NpgsqlParameter("original", original));
+            return Convert.ToInt64(await command.ExecuteScalarAsync(ct));
         }
         finally
         {
             await db.Database.CloseConnectionAsync();
         }
-
-        string? prUrl = null;
-        string? prError = null;
-        var token = config["GITHUB_TOKEN"];
-        var repository = config[$"AdminAgent:GitHub:{(target == "backend" ? "BackendRepository" : "FrontendRepository")}"]
-            ?? (target == "backend" ? "23200110-bit/WebProjecto-EventosPeruIA" : null);
-        if (!string.IsNullOrWhiteSpace(token) && string.IsNullOrWhiteSpace(repository))
-            prError = $"Configura AdminAgent:GitHub:{(target == "backend" ? "BackendRepository" : "FrontendRepository")} para crear el PR.";
-        else if (string.IsNullOrWhiteSpace(token))
-            prError = "GITHUB_TOKEN no está configurado; la propuesta se guardó sin crear un PR.";
-        else if (!string.IsNullOrWhiteSpace(token))
-        {
-            try
-            {
-                prUrl = await CreateDraftPullRequest(token, repository, id, summary, path, correctedContent, ct);
-                await db.Database.ExecuteSqlInterpolatedAsync(
-                    $"UPDATE public.admin_code_patches SET pr_url = {prUrl} WHERE id = {id}", ct);
-            }
-            catch (Exception exception) when (exception is HttpRequestException or JsonException or InvalidOperationException)
-            {
-                logger.LogError(exception, "Could not create draft PR for admin patch {PatchId}.", id);
-                prError = "La propuesta se guardó, pero GitHub no pudo crear el PR draft. Revisa los logs del servidor y los permisos del token.";
-            }
-            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-            {
-                logger.LogError("GitHub timed out while creating draft PR for admin patch {PatchId}.", id);
-                prError = "La propuesta se guardó, pero GitHub agotó el tiempo de espera al crear el PR draft.";
-            }
-        }
-
-        var patch = new AdminProposedPatch(id, target, path, diff, prUrl, "pending");
-        return JsonSerializer.SerializeToElement(new { patch, prError });
     }
 
-    private async Task<string> CreateDraftPullRequest(string token, string repository, long id, string summary,
-        string path, string correctedContent, CancellationToken ct)
+    private Task<int> UpdatePatch(long id, string status, string output, CancellationToken ct) =>
+        db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE public.admin_code_patches
+            SET status = {status}, validation_output = {output},
+                original_content = CASE WHEN {status} = 'pending' THEN original_content ELSE NULL END
+            WHERE id = {id}
+            """, ct);
+
+    private async Task<ProcessResult> RunCommand(string fileName, IReadOnlyList<string> arguments, string root, CancellationToken ct)
     {
-        var parts = repository.Split('/');
-        if (parts.Length != 2 || parts.Any(part => string.IsNullOrWhiteSpace(part) ||
-            part.Any(character => !char.IsLetterOrDigit(character) && character is not ('.' or '_' or '-'))))
-            throw new InvalidOperationException("Configure the GitHub target as owner/repository.");
-
-        using var client = new HttpClient { BaseAddress = new Uri("https://api.github.com/") };
-        client.Timeout = TimeSpan.FromSeconds(30);
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("EventosPeruIA-AdminAgent/1.0");
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
-        var repoPath = $"repos/{parts[0]}/{parts[1]}";
-        using var repoResponse = await client.GetAsync(repoPath, ct);
-        repoResponse.EnsureSuccessStatusCode();
-        using var repoJson = await JsonDocument.ParseAsync(await repoResponse.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        var baseBranch = repoJson.RootElement.GetProperty("default_branch").GetString()
-            ?? throw new JsonException("GitHub repository has no default branch.");
-        using var refResponse = await client.GetAsync($"{repoPath}/git/ref/heads/{Uri.EscapeDataString(baseBranch)}", ct);
-        refResponse.EnsureSuccessStatusCode();
-        using var refJson = await JsonDocument.ParseAsync(await refResponse.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        var baseSha = refJson.RootElement.GetProperty("object").GetProperty("sha").GetString()
-            ?? throw new JsonException("GitHub base branch has no SHA.");
-        var branch = $"admin-agent/patch-{id}";
-        using var createRef = await client.PostAsJsonAsync($"{repoPath}/git/refs",
-            new { @ref = $"refs/heads/{branch}", sha = baseSha }, ct);
-        createRef.EnsureSuccessStatusCode();
-
-        using var fileResponse = await client.GetAsync($"{repoPath}/contents/{EscapePath(path)}?ref={Uri.EscapeDataString(baseBranch)}", ct);
-        fileResponse.EnsureSuccessStatusCode();
-        using var fileJson = await JsonDocument.ParseAsync(await fileResponse.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        var fileSha = fileJson.RootElement.GetProperty("sha").GetString()
-            ?? throw new JsonException("GitHub target file has no SHA.");
-        using var updateResponse = await client.PutAsJsonAsync($"{repoPath}/contents/{EscapePath(path)}", new
+        var start = new ProcessStartInfo(fileName)
         {
-            message = $"Propose admin agent fix #{id}",
-            content = Convert.ToBase64String(Encoding.UTF8.GetBytes(correctedContent)),
-            sha = fileSha,
-            branch
-        }, ct);
-        updateResponse.EnsureSuccessStatusCode();
-        using var prResponse = await client.PostAsJsonAsync($"{repoPath}/pulls", new
+            WorkingDirectory = root,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        using var process = new Process { StartInfo = start };
+        if (!process.Start()) throw new InvalidOperationException($"Could not start {fileName}.");
+        var stdout = process.StandardOutput.ReadToEndAsync(ct);
+        var stderr = process.StandardError.ReadToEndAsync(ct);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromMinutes(8));
+        try
         {
-            title = $"[Admin Agent] {summary}",
-            head = branch,
-            @base = baseBranch,
-            body = $"Automated proposal #{id}. Review and test before merging.",
-            draft = true
-        }, ct);
-        prResponse.EnsureSuccessStatusCode();
-        using var prJson = await JsonDocument.ParseAsync(await prResponse.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-        return prJson.RootElement.GetProperty("html_url").GetString()
-            ?? throw new JsonException("GitHub pull request URL missing.");
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!process.HasExited) process.Kill(entireProcessTree: true);
+            if (ct.IsCancellationRequested) throw;
+            _ = await stdout;
+            _ = await stderr;
+            return new(-1, "Command timed out after eight minutes.");
+        }
+        return new(process.ExitCode, LimitOutput((await stdout) + "\n" + (await stderr)));
     }
 
-    private static string EscapePath(string path) => string.Join("/", path.Split('/').Select(Uri.EscapeDataString));
+    private async Task AtomicWrite(string path, string content, CancellationToken ct)
+    {
+        var temp = path + ".agent-tmp";
+        await File.WriteAllTextAsync(temp, content, new UTF8Encoding(false), ct);
+        File.Move(temp, path, true);
+    }
+
+    private string RestartSignalPath()
+    {
+        var path = config["AdminAgent:RestartSignalPath"]
+            ?? Path.Combine(Path.GetTempPath(), "EventosPeruIA-agent", "restart.json");
+        return Path.GetFullPath(path);
+    }
+
+    private async Task WriteManifest(string path, LocalAgentRestartManifest manifest, CancellationToken ct)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await AtomicWrite(path, JsonSerializer.Serialize(manifest, JsonOptions), ct);
+    }
+
+    private async Task<LocalAgentRestartManifest> ReadManifest(string path, CancellationToken ct)
+    {
+        var text = await File.ReadAllTextAsync(path, ct);
+        return JsonSerializer.Deserialize<LocalAgentRestartManifest>(text, JsonOptions)
+            ?? throw new InvalidOperationException("Local restart manifest is invalid.");
+    }
 
     private static bool ValidRelativePath(string path) =>
-        !path.StartsWith('/') && !path.Contains('\\') &&
-        !path.Any(char.IsControl) &&
+        !path.StartsWith('/') && !path.Contains('\\') && !path.Any(char.IsControl) &&
         path.Split('/').All(part => part.Length > 0 && part is not ("." or ".."));
+
+    private static bool PathEquals(string left, string right) =>
+        string.Equals(Path.GetFullPath(left).TrimEnd(Path.DirectorySeparatorChar),
+            Path.GetFullPath(right).TrimEnd(Path.DirectorySeparatorChar),
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+
+    private static bool HasReparsePoint(string root, string target)
+    {
+        var current = target;
+        while (true)
+        {
+            if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) return true;
+            if (PathEquals(current, root)) return false;
+            current = Path.GetDirectoryName(current)
+                ?? throw new InvalidOperationException("The patch path has no workspace parent.");
+        }
+    }
+
+    private static string LimitOutput(string output) =>
+        output.Length <= 12_000 ? output : output[^12_000..];
+
+    private string SanitizeOutput(string output)
+    {
+        foreach (var key in new[] { "AI:Gemini:ApiKey", "ConnectionStrings:DevConnection" })
+        {
+            var secret = config[key];
+            if (!string.IsNullOrEmpty(secret)) output = output.Replace(secret, "[REDACTED]", StringComparison.Ordinal);
+        }
+        try
+        {
+            var password = new NpgsqlConnectionStringBuilder(config.GetConnectionString("DevConnection") ?? "").Password;
+            if (!string.IsNullOrEmpty(password)) output = output.Replace(password, "[REDACTED]", StringComparison.Ordinal);
+        }
+        catch (ArgumentException) { }
+        return LimitOutput(output);
+    }
 
     private static string RequiredString(JsonElement args, string name)
     {
@@ -284,7 +438,7 @@ public sealed class AdminAgentService(
         new
         {
             name = "query_system_diagnostics",
-            description = "Consulta la cantidad de documentos sin embeddings y propuestas pendientes.",
+            description = "Consulta la cantidad de documentos sin embeddings y parches locales pendientes.",
             parameters = new { type = "OBJECT", properties = new { }, required = Array.Empty<string>() }
         },
         new
@@ -300,15 +454,15 @@ public sealed class AdminAgentService(
         },
         new
         {
-            name = "propose_code_fix",
-            description = "Guarda un diff y el contenido corregido, y opcionalmente abre un PR draft.",
+            name = "apply_code_fix",
+            description = "Aplica un archivo C# corregido al checkout backend local, ejecuta tests/build y revierte si fallan.",
             parameters = new
             {
                 type = "OBJECT",
                 properties = new
                 {
                     error_summary = new { type = "STRING" },
-                    target_repo = new { type = "STRING", @enum = new[] { "frontend", "backend" } },
+                    target_repo = new { type = "STRING", @enum = new[] { "backend" } },
                     file_path = new { type = "STRING" },
                     diff_content = new { type = "STRING" },
                     corrected_content = new { type = "STRING" }
@@ -317,9 +471,25 @@ public sealed class AdminAgentService(
             }
         }
     ];
+
+    private static readonly HashSet<string> ProtectedAgentFiles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "EventosPeruIA.API/Program.cs",
+        "EventosPeruIA.API/Controllers/AdminAgentController.cs",
+        "EventosPeruIA.API/Controllers/LocalAgentRestartResultController.cs",
+        "EventosPeruIA.API/Controllers/AuthenticatedControllerBase.cs",
+        "EventosPeruIA.API/Services/AdminAgentService.cs",
+        "EventosPeruIA.CORE/Infrastructure/Shared/JWTService.cs",
+        "EventosPeruIA.CORE/Infrastructure/Shared/ServiceRegistration.cs"
+    };
 }
 
-public sealed record AdminAgentResponse(string Reply, IReadOnlyList<string> ToolsExecuted, AdminProposedPatch? ProposedPatch);
+public sealed record AdminAgentResponse(
+    string Reply,
+    IReadOnlyList<string> ToolsExecuted,
+    AdminProposedPatch? ProposedPatch,
+    [property: JsonIgnore] LocalAgentRestartManifest? RestartManifest = null);
+
 public sealed record AdminProposedPatch(
     long Id,
     [property: JsonPropertyName("target_repo")] string TargetRepo,
@@ -327,3 +497,12 @@ public sealed record AdminProposedPatch(
     [property: JsonPropertyName("diff_content")] string DiffContent,
     [property: JsonPropertyName("pr_url")] string? PrUrl,
     string Status);
+
+public sealed record LocalAgentRestartManifest(
+    long PatchId,
+    string WorkspaceRoot,
+    string FilePath,
+    string OriginalContentBase64,
+    string State);
+
+internal sealed record ProcessResult(int ExitCode, string Output);

@@ -10,8 +10,13 @@ namespace EventosPeruIA.API.Controllers;
 public sealed class AdminAgentController(AdminAgentService service) : ControllerBase
 {
     [HttpPost, EnableRateLimiting("chat")]
-    public async Task<ActionResult<AdminAgentResponse>> Run([FromBody] AdminAgentRequest request, CancellationToken ct) =>
-        Ok(await service.Run(request.Prompt, ct));
+    public async Task<ActionResult<AdminAgentResponse>> Run([FromBody] AdminAgentRequest request, CancellationToken ct)
+    {
+        var result = await service.Run(request.Prompt, ct);
+        if (result.RestartManifest is { } manifest)
+            Response.OnCompleted(() => service.SignalRestartAsync(manifest));
+        return Ok(result);
+    }
 }
 
 public sealed class AdminAgentRequest
