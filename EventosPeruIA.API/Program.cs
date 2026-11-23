@@ -7,6 +7,7 @@ using EventosPeruIA.CORE.Core.Services;
 using EventosPeruIA.CORE.Infrastructure.Data;
 using EventosPeruIA.CORE.Infrastructure.Repositories;
 using EventosPeruIA.CORE.Infrastructure.Shared;
+using EventosPeruIA.API.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -55,6 +56,10 @@ builder.Services.AddScoped<IAsistentesRepository, AsistentesRepository>();
 builder.Services.AddScoped<IAsistentesService, AsistentesService>();
 builder.Services.AddScoped<IAiRepository, AiRepository>();
 builder.Services.AddScoped<IAiService, AiService>();
+builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
+builder.Services.AddScoped<IRagChatService, RagChatService>();
+builder.Services.AddHostedService<EmbeddingQueueWorker>();
+builder.Services.AddHttpClient<AdminAgentService>(client => client.Timeout = TimeSpan.FromMinutes(2));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();

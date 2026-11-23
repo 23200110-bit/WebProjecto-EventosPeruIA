@@ -12,4 +12,7 @@ public interface IAiRepository
     Task<List<EventosEmbeddings>> Embeddings(int[] ids, string modelo, CancellationToken ct);
     void AgregarEmbedding(EventosEmbeddings embedding);
     Task GuardarConversacion(ConversacionesChatbot conversacion, CancellationToken ct);
+    Task<List<PendingDocumentSectionDTO>> PendingDocumentSections(int count, CancellationToken ct);
+    Task SaveDocumentChunks(PendingDocumentSectionDTO section, IReadOnlyList<(string Content, float[] Embedding)> chunks, CancellationToken ct);
+    Task<List<RagDocumentMatchDTO>> MatchDocuments(float[] queryEmbedding, double threshold, int count, CancellationToken ct);
 }

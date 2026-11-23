@@ -22,6 +22,16 @@ Solicitudes ejecutables: `EventosPeruIA.API/ProyectoFinalWeb.http`.
 Modelos configurables: `AI:Gemini:ChatModel` y `AI:Gemini:EmbeddingModel`.
 La API utiliza la cuota disponible del proyecto Gemini; no activa facturación automáticamente.
 
+RAG:
+
+- Aplica `supabase/migrations/01_vector_rag.sql` a la base PostgreSQL de Supabase antes de iniciar la API.
+- La cola de embeddings se procesa en segundo plano desde `document_sections` con `gemini-embedding-001` y 768 dimensiones.
+- El chat RAG público está disponible en `POST /api/chat`; el chat existente autenticado permanece en `POST /api/ai/chat`.
+- Este backend es .NET y conserva el cliente HTTP REST de Gemini existente; el paquete JavaScript `@google/genai` no aplica a este proyecto.
+- Configura `AI:Gemini:RagChatModel` (predeterminado `gemini-4-hydrogen`) y `AI:Gemini:AdminModel` (predeterminado `gemini-4-neon`) si el proyecto tiene acceso a esos modelos.
+- El agente restringido a administradores está en `POST /api/admin/agent`. Mantiene la autenticación JWT y el rol `Admin` existentes; no usa Supabase Auth.
+- Para propuestas automáticas como PR draft, configura `GITHUB_TOKEN` como variable de entorno y `AdminAgent:GitHub:FrontendRepository` (`owner/repo`). El backend usa el repositorio actual por defecto. Un archivo `.env` no se carga automáticamente en ASP.NET Core. El token requiere permiso de contenido y pull requests; las propuestas nunca se fusionan automáticamente.
+
 Frontend:
 
 ```sh

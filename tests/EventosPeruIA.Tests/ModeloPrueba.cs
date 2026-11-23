@@ -9,6 +9,9 @@ public sealed class ModeloPrueba : IModeloIA
     public int EventoId { get; set; } = 1;
     public string Filtros { get; set; } = "{}";
     public Task<float[]> Embed(string texto, CancellationToken ct) => Task.FromResult(new float[] { 1, 0 });
+    public Task<float[]> Embed(string texto, string taskType, CancellationToken ct) => Task.FromResult(new float[] { 1, 0 });
+    public Task<string> ResponderRag(string pregunta, IReadOnlyList<string> contexto, CancellationToken ct) =>
+        Task.FromResult(contexto.Count == 0 ? "No hay fuentes suficientes." : "Respuesta basada en [Fuente 1].");
     public Task<string> Responder(IReadOnlyList<TurnoChat> mensajes, CancellationToken ct)
     {
         if (Fallar) throw new ProyectoException(503, "Modelo no disponible.");

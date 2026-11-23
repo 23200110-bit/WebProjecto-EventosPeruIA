@@ -39,6 +39,28 @@ public record EventoChatDTO(int EventoId, string Nombre, string Descripcion, str
 }
 public record ChatResponseDTO(int ConversacionId, string Respuesta, IReadOnlyList<EventoChatDTO> Eventos);
 public record TurnoChat(string Role, string Content);
+public sealed class RagChatRequestDTO
+{
+    [Required, StringLength(2000, MinimumLength = 1)]
+    public string Message { get; set; } = "";
+}
+public record RagSourceDTO(long Id, string Title, double Similarity);
+public record RagChatResponseDTO(string Reply, IReadOnlyList<RagSourceDTO> Sources);
+public sealed class PendingDocumentSectionDTO
+{
+    public long Id { get; set; }
+    public string SourceType { get; set; } = "";
+    public string SourceId { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Content { get; set; } = "";
+}
+public sealed class RagDocumentMatchDTO
+{
+    public long Id { get; set; }
+    public string Title { get; set; } = "";
+    public string Content { get; set; } = "";
+    public double Similarity { get; set; }
+}
 public sealed class ProyectoException(int status, string message) : Exception(message)
 {
     public int Status { get; } = status;

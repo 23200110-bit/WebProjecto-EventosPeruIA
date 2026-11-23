@@ -49,6 +49,7 @@ public sealed class GeminiTests
         {
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
             Assert.Equal(768, body.RootElement.GetProperty("outputDimensionality").GetInt32());
+            Assert.Equal("RETRIEVAL_QUERY", body.RootElement.GetProperty("taskType").GetString());
             return Response("""{"embedding":{"values":[1,2]}}""");
         });
         var model = new GeminiModeloIA(new HttpClient(handler), Config());

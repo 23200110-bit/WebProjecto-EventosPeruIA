@@ -22,7 +22,9 @@ public class ChatGruposTests
     {
         public string ModeloEmbeddings => "unused";
         public Task<float[]> Embed(string texto, CancellationToken ct) => throw new Exception("No debe generar embeddings para un cálculo directo");
+        public Task<float[]> Embed(string texto, string taskType, CancellationToken ct) => throw new Exception("No debe generar embeddings para un cálculo directo");
         public Task<string> Responder(IReadOnlyList<TurnoChat> mensajes, CancellationToken ct) => throw new Exception("No debe solicitar cálculo a IA");
+        public Task<string> ResponderRag(string pregunta, IReadOnlyList<string> contexto, CancellationToken ct) => throw new NotSupportedException();
     }
     private sealed class Repository : IAiRepository
     {
@@ -39,5 +41,8 @@ public class ChatGruposTests
         public Task<string> TextoEmbedding(EventoChatDTO evento, CancellationToken ct) => throw new NotSupportedException();
         public Task<List<EventosEmbeddings>> Embeddings(int[] ids, string modelo, CancellationToken ct) => throw new NotSupportedException();
         public void AgregarEmbedding(EventosEmbeddings embedding) => throw new NotSupportedException();
+        public Task<List<PendingDocumentSectionDTO>> PendingDocumentSections(int count, CancellationToken ct) => throw new NotSupportedException();
+        public Task SaveDocumentChunks(PendingDocumentSectionDTO section, IReadOnlyList<(string Content, float[] Embedding)> chunks, CancellationToken ct) => throw new NotSupportedException();
+        public Task<List<RagDocumentMatchDTO>> MatchDocuments(float[] queryEmbedding, double threshold, int count, CancellationToken ct) => throw new NotSupportedException();
     }
 }

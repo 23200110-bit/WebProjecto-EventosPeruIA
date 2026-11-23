@@ -93,7 +93,7 @@ public sealed class AiService(IAiRepository repository, IModeloIA modelo, TimePr
         {
             // La representación incluye los datos actuales: no se reutilizan embeddings de contenido obsoleto.
             var guardados = await repository.Embeddings(candidatos.Select(e => e.EventoId).ToArray(), modelo.ModeloEmbeddings, ct);
-            var preguntaVector = await modelo.Embed(string.Join("\n", turnos.Where(t => t.Role == "user").TakeLast(3).Select(t => t.Content)), ct);
+            var preguntaVector = await modelo.Embed(string.Join("\n", turnos.Where(t => t.Role == "user").TakeLast(3).Select(t => t.Content)), "RETRIEVAL_QUERY", ct);
             var ranking = new List<(EventoChatDTO Evento, double Score)>();
             foreach (var evento in candidatos)
             {
@@ -103,7 +103,7 @@ public sealed class AiService(IAiRepository repository, IModeloIA modelo, TimePr
                 if (previo != null) vector = previo.VectorEmbedding.ToArray();
                 else
                 {
-                    vector = await modelo.Embed(contenido, ct);
+                    vector = await modelo.Embed(contenido, "RETRIEVAL_DOCUMENT", ct);
                     foreach (var anterior in guardados.Where(e => e.EventoId == evento.EventoId)) anterior.Vigente = false;
                     repository.AgregarEmbedding(new EventosEmbeddings
                     {
