@@ -168,7 +168,124 @@ create table if not exists public.admin_code_patches (
 
 alter table public.admin_code_patches add column if not exists original_content text;
 alter table public.admin_code_patches add column if not exists validation_output text;
+
+create table if not exists public.system_bug_reports (
+    id bigint generated always as identity primary key,
+    reporter_user_id integer not null references public.usuarios(usuario_id) on delete cascade,
+    description varchar(1500) not null,
+    fingerprint varchar(64) not null,
+    report_day date not null,
+    contains_prompt_injection boolean not null default false,
+    created_at timestamptz not null default now(),
+    unique (reporter_user_id, fingerprint, report_day)
+);
+
+create index if not exists ix_system_bug_reports_fingerprint_created
+    on public.system_bug_reports (fingerprint, created_at desc);
+
+create table if not exists public.system_bug_incidents (
+    fingerprint varchar(64) primary key,
+    first_reported_at timestamptz not null,
+    last_reported_at timestamptz not null,
+    report_count integer not null,
+    distinct_reporters integer not null,
+    status text not null default 'pending'
+        check (status in ('pending', 'processing', 'awaiting_restart', 'resolved', 'no_patch', 'rejected')),
+    admin_code_patch_id bigint references public.admin_code_patches(id),
+    summary text not null,
+    validation_output text,
+    last_attempt_at timestamptz,
+    attempt_count integer not null default 0
+);
+
+create index if not exists ix_system_bug_incidents_ready
+    on public.system_bug_incidents (status, last_attempt_at)
+    where status = 'pending';
+
+create or replace function public.queue_repeated_bug_incident()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog, public, pg_temp
+as $$
+declare
+    recent_report_count integer;
+    recent_reporters integer;
+    earliest_report timestamptz;
+    latest_report timestamptz;
+begin
+    select count(*)::integer,
+           count(distinct reporter_user_id)::integer,
+           min(created_at),
+           max(created_at)
+      into recent_report_count, recent_reporters, earliest_report, latest_report
+      from public.system_bug_reports
+     where fingerprint = new.fingerprint
+       and created_at >= now() - interval '24 hours';
+
+    if recent_reporters >= 3 then
+        insert into public.system_bug_incidents (
+            fingerprint, first_reported_at, last_reported_at, report_count,
+            distinct_reporters, status, summary
+        )
+        values (
+            new.fingerprint, earliest_report, latest_report, recent_report_count,
+            recent_reporters, 'pending', new.description
+        )
+        on conflict (fingerprint) do update
+            set first_reported_at = excluded.first_reported_at,
+                last_reported_at = excluded.last_reported_at,
+                report_count = excluded.report_count,
+                distinct_reporters = excluded.distinct_reporters,
+                status = case
+                    when system_bug_incidents.status in ('resolved', 'no_patch', 'rejected')
+                     and system_bug_incidents.last_reported_at < now() - interval '24 hours'
+                    then 'pending'
+                    else system_bug_incidents.status
+                end,
+                admin_code_patch_id = case
+                    when system_bug_incidents.status in ('resolved', 'no_patch', 'rejected')
+                     and system_bug_incidents.last_reported_at < now() - interval '24 hours'
+                    then null
+                    else system_bug_incidents.admin_code_patch_id
+                end,
+                attempt_count = case
+                    when system_bug_incidents.status in ('resolved', 'no_patch', 'rejected')
+                     and system_bug_incidents.last_reported_at < now() - interval '24 hours'
+                    then 0
+                    else system_bug_incidents.attempt_count
+                end,
+                last_attempt_at = case
+                    when system_bug_incidents.status in ('resolved', 'no_patch', 'rejected')
+                     and system_bug_incidents.last_reported_at < now() - interval '24 hours'
+                    then null
+                    else system_bug_incidents.last_attempt_at
+                end,
+                summary = case
+                    when system_bug_incidents.status in ('resolved', 'no_patch', 'rejected')
+                     and system_bug_incidents.last_reported_at < now() - interval '24 hours'
+                    then excluded.summary
+                    else system_bug_incidents.summary
+                end
+        where system_bug_incidents.status in ('pending', 'processing', 'awaiting_restart')
+           or system_bug_incidents.last_reported_at < now() - interval '24 hours';
+    end if;
+
+    return new;
+end;
+$$;
+
+drop trigger if exists trg_queue_repeated_bug_incident on public.system_bug_reports;
+create trigger trg_queue_repeated_bug_incident
+after insert on public.system_bug_reports
+for each row
+execute function public.queue_repeated_bug_incident();
+
 alter table public.document_sections enable row level security;
 alter table public.admin_code_patches enable row level security;
+alter table public.system_bug_reports enable row level security;
+alter table public.system_bug_incidents enable row level security;
 revoke all on public.document_sections, public.admin_code_patches from anon, authenticated;
+revoke all on public.system_bug_reports, public.system_bug_incidents from anon, authenticated;
 revoke all on function public.match_documents(vector, float, int) from public, anon, authenticated;
+revoke all on function public.queue_repeated_bug_incident() from public, anon, authenticated;

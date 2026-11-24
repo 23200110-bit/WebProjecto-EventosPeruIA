@@ -10,10 +10,12 @@ public sealed class RagChatService(IAiRepository repository, IModeloIA model) : 
         if (string.IsNullOrWhiteSpace(message))
             throw new ProyectoException(400, "Escribe una pregunta.");
 
+        if (PromptInjectionGuard.IsInjectionAttempt(message))
+            throw new ProyectoException(400, "No puedo seguir instrucciones para cambiar mis reglas ni revelar información interna.");
+
         var queryEmbedding = await model.Embed(message.Trim(), "RETRIEVAL_QUERY", ct);
         var matches = await repository.MatchDocuments(queryEmbedding, 0.75, 5, ct);
-        var context = matches.Select(match => $"[Fuente {match.Id}: {match.Title}]\n{match.Content}").ToArray();
-        var reply = await model.ResponderRag(message.Trim(), context, ct);
+        var reply = await model.ResponderRag(message.Trim(), matches, ct);
         if (string.IsNullOrWhiteSpace(reply) || reply.Length > 12000)
             throw new ProyectoException(502, "El modelo devolvió una respuesta inválida. Intenta nuevamente.");
 

@@ -24,13 +24,22 @@ public sealed class LocalAgentRestartResultController(PostgresContext db, IConfi
             return Unauthorized();
 
         var status = request.Healthy ? "approved" : "rejected";
+        await using var transaction = await db.Database.BeginTransactionAsync(ct);
         var updated = await db.Database.ExecuteSqlInterpolatedAsync($"""
             UPDATE public.admin_code_patches
             SET status = {status}, validation_output = {request.Details}, original_content = NULL
             WHERE id = {request.PatchId} AND status = 'pending'
             """, ct);
-        if (updated == 1) return NoContent();
-        return NotFound();
+        if (updated != 1) return NotFound();
+        var incidentStatus = request.Healthy ? "resolved" : "rejected";
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE public.system_bug_incidents
+            SET status = {incidentStatus}, validation_output = {request.Details}
+            WHERE admin_code_patch_id = {request.PatchId}
+              AND status = 'awaiting_restart'
+            """, ct);
+        await transaction.CommitAsync(ct);
+        return NoContent();
     }
 }
 

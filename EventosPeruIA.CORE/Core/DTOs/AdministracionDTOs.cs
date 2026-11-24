@@ -46,6 +46,25 @@ public sealed class RagChatRequestDTO
 }
 public record RagSourceDTO(long Id, string Title, double Similarity);
 public record RagChatResponseDTO(string Reply, IReadOnlyList<RagSourceDTO> Sources);
+public sealed class BugReportRequestDTO
+{
+    [Required, StringLength(1500, MinimumLength = 20)]
+    public string Description { get; set; } = "";
+}
+public record BugReportReceiptDTO(long ReportId, int DistinctReportersLast24Hours, bool AutomaticDiagnosisQueued);
+public sealed class PendingBugIncidentDTO
+{
+    public string Fingerprint { get; set; } = "";
+    public string Summary { get; set; } = "";
+    public int ReportCount { get; set; }
+    public int DistinctReporters { get; set; }
+    public int AttemptCount { get; set; }
+}
+public sealed class BugReportEvidenceDTO
+{
+    public string Description { get; set; } = "";
+    public bool ContainsPromptInjection { get; set; }
+}
 public sealed class PendingDocumentSectionDTO
 {
     public long Id { get; set; }
