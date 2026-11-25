@@ -40,6 +40,8 @@ RAG:
 .\scripts\run-local-agent.ps1
 ```
 
+Borrador desde flyer: `POST /api/eventos/flyer-borrador` (autenticado) recibe la imagen en base64 y devuelve datos sugeridos sin guardar nada; modelo configurable con `AI:Gemini:FlyerModel` (por defecto `AI:Gemini:ChatModel`, debe admitir imágenes).
+
 Frontend:
 
 ```sh
