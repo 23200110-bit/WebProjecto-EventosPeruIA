@@ -26,6 +26,7 @@ RAG:
 
 - Aplica `supabase/migrations/01_vector_rag.sql` a la base PostgreSQL de Supabase antes de iniciar la API.
 - La cola de embeddings se procesa en segundo plano desde `document_sections` con `gemini-embedding-001` y 768 dimensiones.
+- `Rag:MatchThreshold` (opcional, 0-1, por defecto 0.6) controla qué tan parecida debe ser una fuente a la pregunta. Aplica también `supabase/migrations/02_faq_compra_entradas.sql` para las FAQs de compra de entradas.
 - El chat RAG público está disponible en `POST /api/chat`; el chat existente autenticado permanece en `POST /api/ai/chat`.
 - El chatbot debe enviar los reportes explícitos de usuarios autenticados a `POST /api/ai/bug-reports` con `{ "description": "..." }`. Supabase agrupa descripciones normalizadas iguales; solo cuenta una vez por usuario y día.
 - Tres cuentas distintas que reporten el mismo problema dentro de 24 horas ponen la incidencia en cola. El worker local la procesa si el runner está activo; las incidencias, reportes y resultados quedan en PostgreSQL/Supabase.
