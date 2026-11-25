@@ -1,7 +1,9 @@
-﻿using EventosPeruIA.CORE.Core.Entities;
+﻿using EventosPeruIA.CORE.Core.DTOs;
+using EventosPeruIA.CORE.Core.Entities;
 using EventosPeruIA.CORE.Core.Interfaces;
 using EventosPeruIA.CORE.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace EventosPeruIA.CORE.Infrastructure.Repositories
 {
@@ -40,6 +42,7 @@ namespace EventosPeruIA.CORE.Infrastructure.Repositories
         public async Task<Eventos?> GetEventoByIdAsync(int id)
         {
             return await _context.Eventos
+                .AsTracking()
                 .Include(e => e.Categoria)
                 .Include(e => e.Organizador)
                 .FirstOrDefaultAsync(e => e.EventoId == id);
@@ -54,8 +57,36 @@ namespace EventosPeruIA.CORE.Infrastructure.Repositories
 
         public async Task<bool> UpdateEventoAsync(Eventos evento)
         {
-            _context.Eventos.Update(evento);
-            return await _context.SaveChangesAsync() > 0;
+            try
+            {
+                return await _context.SaveChangesAsync() > 0;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                throw new ProyectoException(
+                    409,
+                    "El evento cambió mientras lo editabas. Recarga la página y vuelve a intentarlo.");
+            }
+        }
+        public async Task CancelarEventoEnBaseAsync(int eventoId, int usuarioId, int motivoId, string descripcion)
+        {
+            try
+            {
+                await _context.Database.ExecuteSqlInterpolatedAsync(
+                    $"SELECT public.fn_cancelar_evento({eventoId}, {usuarioId}, {motivoId}, {descripcion})");
+            }
+            catch (PostgresException ex) when (
+                ex.SqlState is "EP011" or "EP012" or "EP013" or "EP014" or "EP015" or "EP016")
+            {
+                int estadoHttp = ex.SqlState switch
+                {
+                    "EP011" => 404,
+                    "EP014" => 403,
+                    _ => 400
+                };
+
+                throw new ProyectoException(estadoHttp, ex.MessageText);
+            }
         }
 
         public async Task<bool> CategoriaExistsAsync(int categoriaId)

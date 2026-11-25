@@ -2,6 +2,7 @@
 using EventosPeruIA.CORE.Core.DTOs.Eventos;
 using EventosPeruIA.CORE.Core.Entities;
 using EventosPeruIA.CORE.Core.Interfaces;
+using EventosPeruIA.CORE.Core.DTOs;
 
 namespace EventosPeruIA.CORE.Core.Services
 {
@@ -84,8 +85,8 @@ namespace EventosPeruIA.CORE.Core.Services
             if (dto.Aforo <= 0) throw new ValidationException("El aforo debe ser un número entero mayor a cero.");
             if (dto.Precio < 0) throw new ValidationException("El precio no puede ser negativo.");
 
-            var fechaInicio = DateTime.SpecifyKind(dto.FechaInicio, DateTimeKind.Utc);
-            DateTime? fechaFin = dto.FechaFin.HasValue ? DateTime.SpecifyKind(dto.FechaFin.Value, DateTimeKind.Utc) : null;
+            var fechaInicio = dto.FechaInicio.UtcDateTime;
+            var fechaFin = dto.FechaFin?.UtcDateTime;
 
             if (fechaInicio <= DateTime.UtcNow) throw new ValidationException("La fecha de inicio debe ser posterior a la fecha actual.");
             if (fechaFin.HasValue && fechaFin.Value <= fechaInicio) throw new ValidationException("La fecha de fin debe ser posterior a la fecha de inicio.");
@@ -120,6 +121,12 @@ namespace EventosPeruIA.CORE.Core.Services
             var existing = await _eventoRepository.GetEventoByIdAsync(dto.EventoId);
             if (existing == null) throw new KeyNotFoundException("El evento especificado no existe.");
             if (existing.OrganizadorId != userId) throw new UnauthorizedAccessException("Acceso denegado: No es el propietario del evento.");
+
+            if (dto.VersionFila.HasValue && dto.VersionFila.Value != existing.VersionFila)
+                throw new ProyectoException(
+                    409,
+                    "El evento cambió mientras lo editabas. Recarga la página y vuelve a intentarlo.");
+
             if (existing.Estado != "Borrador" && existing.Estado != "Publicado") throw new ValidationException("Solo se pueden editar eventos en estado Borrador o Publicado.");
 
             if (dto.Aforo <= 0) throw new ValidationException("El aforo debe ser mayor a cero.");
@@ -128,8 +135,23 @@ namespace EventosPeruIA.CORE.Core.Services
             int entradasActivas = await _eventoRepository.CountEntradasActivasAsync(dto.EventoId);
             if (dto.Aforo < entradasActivas) throw new ValidationException($"El aforo ({dto.Aforo}) no puede ser menor a las entradas ya vendidas ({entradasActivas}).");
 
-            var fechaInicio = DateTime.SpecifyKind(dto.FechaInicio, DateTimeKind.Utc);
-            DateTime? fechaFin = dto.FechaFin.HasValue ? DateTime.SpecifyKind(dto.FechaFin.Value, DateTimeKind.Utc) : null;
+            var fechaInicio = dto.FechaInicio.UtcDateTime;
+            var fechaFin = dto.FechaFin?.UtcDateTime;
+
+            if (fechaInicio == default)
+                throw new ValidationException("La fecha de inicio es obligatoria.");
+
+            if (fechaFin.HasValue && fechaFin.Value <= fechaInicio)
+                throw new ValidationException("La fecha de fin debe ser posterior a la fecha de inicio.");
+
+            var vaAPublicar = existing.Estado == "Borrador" && dto.Publicar;
+
+            if ((vaAPublicar || existing.FechaInicio != fechaInicio) && fechaInicio <= DateTime.UtcNow)
+                throw new ValidationException("La fecha de inicio debe ser posterior a la fecha actual.");
+
+            if (existing.CategoriaId != dto.CategoriaId &&
+                !await _eventoRepository.CategoriaExistsAsync(dto.CategoriaId))
+                throw new ValidationException("La categoría especificada no existe o no está activa.");
 
             bool cambioProgramacion = existing.FechaInicio != fechaInicio || existing.FechaFin != fechaFin || existing.Direccion != dto.Direccion;
             bool cambioContenido = cambioProgramacion || existing.Nombre != dto.Nombre || existing.Descripcion != dto.Descripcion || existing.Precio != dto.Precio;
@@ -179,43 +201,21 @@ namespace EventosPeruIA.CORE.Core.Services
 
         public async Task<bool> CancelEventoAsync(int id, int userId, EventoCancelDto dto)
         {
-            var existing = await _eventoRepository.GetEventoByIdAsync(id);
-            if (existing == null) throw new KeyNotFoundException("El evento especificado no existe.");
-            if (existing.OrganizadorId != userId) throw new UnauthorizedAccessException("Acceso denegado: No es el propietario del evento.");
-            if (existing.Estado != "Borrador" && existing.Estado != "Publicado") throw new ValidationException("Solo se pueden cancelar eventos en estado Borrador o Publicado.");
-            if (existing.FechaInicio <= DateTime.UtcNow) throw new ValidationException("No se puede cancelar un evento que ya inició.");
-            if (!await _eventoRepository.MotivoCancelacionExistsAsync(dto.MotivoCancelacionId)) throw new ValidationException("El motivo de cancelación especificado no existe.");
+            var descripcion = dto.DescripcionAdicional?.Trim();
 
-            int entradasVendidas = await _eventoRepository.CountEntradasActivasAsync(id);
-            if (string.IsNullOrWhiteSpace(dto.DescripcionAdicional))
-            {
+            if (string.IsNullOrEmpty(descripcion))
                 throw new ValidationException("Es obligatorio ingresar una descripción justificada de la cancelación.");
-            }
 
-            existing.Estado = "Cancelado";
-            existing.FechaActualizacion = DateTime.UtcNow;
+            if (descripcion.Length > 500)
+                throw new ValidationException("La descripción no puede superar los 500 caracteres.");
 
-            bool cancelado = await _eventoRepository.UpdateEventoAsync(existing);
+            await _eventoRepository.CancelarEventoEnBaseAsync(
+                id,
+                userId,
+                dto.MotivoCancelacionId,
+                descripcion);
 
-            if (cancelado)
-            {
-                await _eventoRepository.RegistrarEventoCancelacionAsync(
-                    id,
-                    dto.MotivoCancelacionId,
-                    dto.DescripcionAdicional,
-                    userId,
-                    entradasVendidas
-                );
-                await _eventoRepository.InactivarEmbeddingsVigentesAsync(id);
-                await _eventoRepository.CrearNotificacionesCompradoresAsync(
-                    id,
-                    "CancelacionEvento",
-                    $"El evento \"{existing.Nombre}\" ha sido cancelado. Motivo registrado: {dto.DescripcionAdicional}"
-                );
-                await _eventoRepository.CancelarEntradasYMarcarReembolsoAsync(id);
-            }
-
-            return cancelado;
+            return true;
         }
 
         public async Task<bool> PatchEventoAsync(int id, int userId, EventoPatchDto dto)
@@ -297,6 +297,7 @@ namespace EventosPeruIA.CORE.Core.Services
             return new EventoDetalleDto
             {
                 EventoId = e.EventoId,
+                VersionFila = e.VersionFila,
                 OrganizadorId = e.OrganizadorId,
                 Categoria = new CategoriaResumenDto
                 {

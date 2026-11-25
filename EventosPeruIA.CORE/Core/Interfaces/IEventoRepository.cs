@@ -8,6 +8,7 @@ namespace EventosPeruIA.CORE.Core.Interfaces
         Task<Eventos?> GetEventoByIdAsync(int id);
         Task<int> CreateEventoAsync(Eventos evento);
         Task<bool> UpdateEventoAsync(Eventos evento);
+        Task CancelarEventoEnBaseAsync(int eventoId, int usuarioId, int motivoId, string descripcion);
         Task<bool> CategoriaExistsAsync(int categoriaId);
         Task<bool> MotivoCancelacionExistsAsync(int motivoCancelacionId);
         Task<int> CountEntradasActivasAsync(int eventoId);

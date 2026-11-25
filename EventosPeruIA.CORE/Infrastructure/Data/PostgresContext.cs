@@ -412,6 +412,8 @@ public partial class PostgresContext : DbContext
                 .HasColumnName("precio");
             entity.Property(e => e.VersionFila)
                 .HasDefaultValue(1L)
+                .IsConcurrencyToken()
+                .ValueGeneratedOnAddOrUpdate()
                 .HasComment("Se incrementa en cada UPDATE (concurrencia optimista en EF Core).")
                 .HasColumnName("version_fila");
 
