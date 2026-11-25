@@ -174,6 +174,9 @@ public sealed class ModeloObservado(IModeloIA modelo, List<string> salidas) : IM
 {
     public string ModeloEmbeddings => modelo.ModeloEmbeddings;
     public Task<float[]> Embed(string texto, CancellationToken ct) => modelo.Embed(texto, ct);
+    public Task<float[]> Embed(string texto, string taskType, CancellationToken ct) => modelo.Embed(texto, taskType, ct);
+    public Task<string> ResponderRag(string pregunta, IReadOnlyList<RagDocumentMatchDTO> contexto, CancellationToken ct) =>
+        modelo.ResponderRag(pregunta, contexto, ct);
     public async Task<string> Responder(IReadOnlyList<TurnoChat> mensajes, CancellationToken ct)
     {
         var salida = await modelo.Responder(mensajes, ct); salidas.Add(salida); return salida;

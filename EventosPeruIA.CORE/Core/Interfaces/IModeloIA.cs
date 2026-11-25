@@ -7,5 +7,7 @@ public interface IModeloIA
 {
     string ModeloEmbeddings { get; }
     Task<float[]> Embed(string texto, CancellationToken ct);
+    Task<float[]> Embed(string texto, string taskType, CancellationToken ct);
     Task<string> Responder(IReadOnlyList<TurnoChat> mensajes, CancellationToken ct);
+    Task<string> ResponderRag(string pregunta, IReadOnlyList<RagDocumentMatchDTO> contexto, CancellationToken ct);
 }

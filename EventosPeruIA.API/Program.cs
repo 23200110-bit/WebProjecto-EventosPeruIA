@@ -7,6 +7,7 @@ using EventosPeruIA.CORE.Core.Services;
 using EventosPeruIA.CORE.Infrastructure.Data;
 using EventosPeruIA.CORE.Infrastructure.Repositories;
 using EventosPeruIA.CORE.Infrastructure.Shared;
+using EventosPeruIA.API.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -55,6 +56,13 @@ builder.Services.AddScoped<IAsistentesRepository, AsistentesRepository>();
 builder.Services.AddScoped<IAsistentesService, AsistentesService>();
 builder.Services.AddScoped<IAiRepository, AiRepository>();
 builder.Services.AddScoped<IAiService, AiService>();
+builder.Services.AddScoped<IEmbeddingService, EmbeddingService>();
+builder.Services.AddScoped<IRagChatService, RagChatService>();
+builder.Services.AddScoped<SystemBugReportService>();
+builder.Services.AddScoped<SystemBugIncidentProcessor>();
+builder.Services.AddHostedService<EmbeddingQueueWorker>();
+builder.Services.AddHostedService<SystemBugIncidentWorker>();
+builder.Services.AddHttpClient<AdminAgentService>(client => client.Timeout = TimeSpan.FromMinutes(2));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
@@ -121,7 +129,22 @@ app.UseAuthorization();
 app.UseRateLimiter();
 
 app.MapControllers();
+app.MapGet("/health", HealthCheck);
 
 app.Run();
+
+static async Task<IResult> HealthCheck(PostgresContext db, CancellationToken ct)
+{
+    try
+    {
+        if (await db.Database.CanConnectAsync(ct))
+            return Results.Ok(new { status = "ok" });
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Npgsql.NpgsqlException)
+    {
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+}
 
 public partial class Program { }

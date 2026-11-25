@@ -369,3 +369,5 @@ dist/
 .env
 .env.local
 .env.*.local
+*.agent-tmp
+*.agent-rollback
