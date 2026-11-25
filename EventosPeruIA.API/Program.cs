@@ -85,6 +85,7 @@ builder.Services.AddTransient<IEmailSender>(services => {
 builder.Services.AddScoped<ITicketMailService, TicketMailService>();
 builder.Services.AddHttpClient<IGoogleTokenValidator, GoogleTokenValidator>(client => client.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
+builder.Services.AddHttpClient<IFlyerExtractor, GeminiFlyerExtractor>(client => client.Timeout = TimeSpan.FromSeconds(60));
 builder.Services.AddHttpClient<IModeloIA, GeminiModeloIA>(client => client.Timeout = TimeSpan.FromMinutes(2));
 builder.Services.AddRateLimiter(options =>
 {
