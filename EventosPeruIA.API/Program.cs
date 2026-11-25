@@ -83,6 +83,7 @@ builder.Services.AddTransient<IEmailSender>(services => {
         : ActivatorUtilities.CreateInstance<LocalEmailSender>(services);
 });
 builder.Services.AddScoped<ITicketMailService, TicketMailService>();
+builder.Services.AddScoped<IAvisoEventoService, AvisoEventoService>();
 builder.Services.AddHttpClient<IGoogleTokenValidator, GoogleTokenValidator>(client => client.Timeout = TimeSpan.FromSeconds(10));
 builder.Services.AddScoped<IGoogleAuthService, GoogleAuthService>();
 builder.Services.AddHttpClient<IFlyerExtractor, GeminiFlyerExtractor>(client => client.Timeout = TimeSpan.FromSeconds(60));
