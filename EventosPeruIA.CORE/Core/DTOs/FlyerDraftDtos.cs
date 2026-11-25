@@ -23,4 +23,5 @@ public sealed record FlyerDraftDTO(
     string? NombreLugar,
     string? Direccion,
     decimal? Precio,
-    int? Aforo);
+    int? Aforo,
+    bool? AnioIndicado);
