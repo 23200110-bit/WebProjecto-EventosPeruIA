@@ -105,6 +105,14 @@ namespace EventosPeruIA.CORE.Infrastructure.Repositories
                 .CountAsync(e => e.EventoId == eventoId && (e.Estado == "Valida" || e.Estado == "Utilizada"));
         }
 
+        /// <summary>Ingreso real: suma lo que pagó cada comprador (PrecioPagado), no el precio actual del evento.</summary>
+        public async Task<decimal> SumIngresosEntradasActivasAsync(int eventoId)
+        {
+            return await _context.Entradas
+                .Where(e => e.EventoId == eventoId && (e.Estado == "Valida" || e.Estado == "Utilizada"))
+                .SumAsync(e => (decimal?)e.PrecioPagado) ?? 0m;
+        }
+
         public async Task InactivarEmbeddingsVigentesAsync(int eventoId)
         {
             var embeddings = await _context

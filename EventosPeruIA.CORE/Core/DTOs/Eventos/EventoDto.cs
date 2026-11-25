@@ -32,6 +32,8 @@ namespace EventosPeruIA.CORE.Core.DTOs.Eventos
     public class EventoDetalleDto : EventoDto
     {
         public int TicketsVendidos { get; set; }
+        /// <summary>Suma de lo pagado por las entradas vigentes; no cambia si luego se edita el precio.</summary>
+        public decimal IngresosTotales { get; set; }
         public int CuposDisponibles { get; set; }
         public bool Agotado { get; set; }
         public long? VersionFila { get; set; }
