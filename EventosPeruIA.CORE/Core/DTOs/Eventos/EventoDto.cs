@@ -34,6 +34,7 @@ namespace EventosPeruIA.CORE.Core.DTOs.Eventos
         public int TicketsVendidos { get; set; }
         public int CuposDisponibles { get; set; }
         public bool Agotado { get; set; }
+        public long? VersionFila { get; set; }
     }
 
     public class EventoFiltroQueryDto
@@ -55,9 +56,8 @@ namespace EventosPeruIA.CORE.Core.DTOs.Eventos
         [Required(ErrorMessage = "La descripción es obligatoria.")]
         public string Descripcion { get; set; } = string.Empty;
 
-        public DateTime FechaInicio { get; set; }
-
-        public DateTime? FechaFin { get; set; }
+        public DateTimeOffset FechaInicio { get; set; }
+        public DateTimeOffset? FechaFin { get; set; }
 
         [Required(ErrorMessage = "La dirección es obligatoria.")]
         [StringLength(250, ErrorMessage = "La dirección no puede superar los 250 caracteres.")]
@@ -87,6 +87,7 @@ namespace EventosPeruIA.CORE.Core.DTOs.Eventos
     public class EventoUpdateDto : EventoCreateDto
     {
         public int EventoId { get; set; }
+        public long? VersionFila { get; set; }
     }
 
     public class EventoCancelDto

@@ -37,9 +37,12 @@ namespace EventosPeruIA.CORE.Core.Services
             bool esValida = string.Equals(entrada.Estado, "Valida", StringComparison.OrdinalIgnoreCase)
                             && !string.Equals(entrada.Evento?.Estado, "Cancelado", StringComparison.OrdinalIgnoreCase);
             bool esAnulada = string.Equals(entrada.Estado, "Anulada", StringComparison.OrdinalIgnoreCase);
+            bool pendienteReembolso = esAnulada
+                && entrada.PrecioPagado > 0
+                && string.Equals(entrada.EstadoReembolso, "PendienteReembolso", StringComparison.OrdinalIgnoreCase);
 
             string motivoCompleto = FormatearMotivoCancelacion(entrada.Evento?.EventosCancelacion);
-            string mensajeReembolso = esAnulada
+            string mensajeReembolso = pendienteReembolso
                 ? $"Pendiente de reembolso · Motivo: {motivoCompleto}"
                 : string.Empty;
 
@@ -58,7 +61,7 @@ namespace EventosPeruIA.CORE.Core.Services
                 CodigoCorto = entrada.CodigoCorto ?? string.Empty,
                 QrPayload = esValida ? entrada.EntradaId.ToString() : string.Empty,
                 EstaActiva = esValida,
-                PendienteReembolso = esAnulada,
+                PendienteReembolso = pendienteReembolso,
                 MotivoCancelacion = esAnulada ? motivoCompleto : null,
                 MensajeEstadoReembolso = mensajeReembolso
             };
@@ -69,6 +72,9 @@ namespace EventosPeruIA.CORE.Core.Services
             bool esValida = string.Equals(entrada.Estado, "Valida", StringComparison.OrdinalIgnoreCase)
                             && !string.Equals(entrada.Evento?.Estado, "Cancelado", StringComparison.OrdinalIgnoreCase);
             bool esAnulada = string.Equals(entrada.Estado, "Anulada", StringComparison.OrdinalIgnoreCase);
+            bool pendienteReembolso = esAnulada
+                && entrada.PrecioPagado > 0
+                && string.Equals(entrada.EstadoReembolso, "PendienteReembolso", StringComparison.OrdinalIgnoreCase);
             string motivoCompleto = FormatearMotivoCancelacion(entrada.Evento?.EventosCancelacion);
 
             return new EntradaDto
@@ -88,7 +94,7 @@ namespace EventosPeruIA.CORE.Core.Services
                 CodigoQrData = esValida ? entrada.EntradaId.ToString() : string.Empty,
                 QrDeshabilitado = !esValida,
                 MotivoCancelacion = esAnulada ? motivoCompleto : null,
-                PendienteReembolso = esAnulada
+                PendienteReembolso = pendienteReembolso
             };
         }
 
