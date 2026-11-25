@@ -12,6 +12,7 @@ namespace EventosPeruIA.CORE.Core.Interfaces
         Task<bool> CategoriaExistsAsync(int categoriaId);
         Task<bool> MotivoCancelacionExistsAsync(int motivoCancelacionId);
         Task<int> CountEntradasActivasAsync(int eventoId);
+        Task<decimal> SumIngresosEntradasActivasAsync(int eventoId);
         Task InactivarEmbeddingsVigentesAsync(int eventoId);
         Task CrearNotificacionesCompradoresAsync(int eventoId, string tipo, string mensaje);
         Task CancelarEntradasYMarcarReembolsoAsync(int eventoId);

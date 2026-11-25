@@ -50,6 +50,7 @@ namespace EventosPeruIA.CORE.Core.Services
                 return null;
 
             int entradasVendidas = await _eventoRepository.CountEntradasActivasAsync(id);
+            decimal ingresos = await _eventoRepository.SumIngresosEntradasActivasAsync(id);
             int cuposDisponibles = Math.Max(0, e.Aforo - entradasVendidas);
 
             return new EventoDetalleDto
@@ -75,6 +76,7 @@ namespace EventosPeruIA.CORE.Core.Services
                 ImagenUrl = e.ImagenUrl,
                 NombreLugar = e.NombreLugar,
                 TicketsVendidos = entradasVendidas,
+                IngresosTotales = ingresos,
                 CuposDisponibles = cuposDisponibles,
                 Agotado = cuposDisponibles == 0
             };
@@ -251,6 +253,7 @@ namespace EventosPeruIA.CORE.Core.Services
             foreach (var e in eventos)
             {
                 int entradasVendidas = await _eventoRepository.CountEntradasActivasAsync(e.EventoId);
+                decimal ingresos = await _eventoRepository.SumIngresosEntradasActivasAsync(e.EventoId);
                 int cuposDisponibles = Math.Max(0, e.Aforo - entradasVendidas);
 
                 resultado.Add(new EventoDetalleDto
@@ -277,6 +280,7 @@ namespace EventosPeruIA.CORE.Core.Services
                     ImagenUrl = e.ImagenUrl,
                     NombreLugar = e.NombreLugar,
                     TicketsVendidos = entradasVendidas,
+                    IngresosTotales = ingresos,
                     CuposDisponibles = cuposDisponibles,
                     Agotado = cuposDisponibles == 0
                 });
