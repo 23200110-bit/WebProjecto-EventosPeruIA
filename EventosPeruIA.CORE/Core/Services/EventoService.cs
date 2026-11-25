@@ -9,11 +9,16 @@ namespace EventosPeruIA.CORE.Core.Services
     public class EventoService : IEventoService
     {
         private readonly IEventoRepository _eventoRepository;
+        private readonly IAvisoEventoService _avisos;
 
-        public EventoService(IEventoRepository eventoRepository)
+        public EventoService(IEventoRepository eventoRepository, IAvisoEventoService avisos)
         {
             _eventoRepository = eventoRepository;
+            _avisos = avisos;
         }
+
+        // Hora de Lima (UTC-5, sin horario de verano) para los textos de los avisos.
+        private static string HoraLima(DateTime utc) => utc.AddHours(-5).ToString("dd/MM/yyyy HH:mm");
 
         public async Task<List<EventoDto>> ListarEventosAsync(EventoFiltroQueryDto filtro)
         {
@@ -154,6 +159,11 @@ namespace EventosPeruIA.CORE.Core.Services
                 throw new ValidationException("La categoría especificada no existe o no está activa.");
 
             bool cambioProgramacion = existing.FechaInicio != fechaInicio || existing.FechaFin != fechaFin || existing.Direccion != dto.Direccion;
+            bool cambioPrecio = existing.Precio != dto.Precio;
+            string nombreAnterior = existing.Nombre;
+            decimal precioAnterior = existing.Precio;
+            DateTime inicioAnterior = existing.FechaInicio;
+            string direccionAnterior = existing.Direccion;
             bool cambioContenido = cambioProgramacion || existing.Nombre != dto.Nombre || existing.Descripcion != dto.Descripcion || existing.Precio != dto.Precio;
 
             existing.CategoriaId = dto.CategoriaId;
@@ -186,13 +196,20 @@ namespace EventosPeruIA.CORE.Core.Services
                     await _eventoRepository.InactivarEmbeddingsVigentesAsync(existing.EventoId);
                 }
 
-                if (cambioProgramacion)
+                bool avisarEstado = existing.Estado == "Publicado" && (cambioProgramacion || cambioPrecio);
+                if (avisarEstado)
                 {
-                    await _eventoRepository.CrearNotificacionesCompradoresAsync(
-                        existing.EventoId,
-                        "CambioEvento",
-                        $"El evento \"{existing.Nombre}\" ha cambiado su horario o ubicación. Revisa los nuevos detalles."
-                    );
+                    var cambios = new List<string>();
+                    if (existing.FechaInicio != inicioAnterior)
+                        cambios.Add($"Fecha y hora: antes {HoraLima(inicioAnterior)}, ahora {HoraLima(existing.FechaInicio)}.");
+                    if (existing.Direccion != direccionAnterior)
+                        cambios.Add($"Lugar: antes {direccionAnterior}, ahora {existing.Direccion}.");
+                    if (cambioPrecio)
+                        cambios.Add($"Precio de entrada: antes S/ {precioAnterior:0.00}, ahora S/ {existing.Precio:0.00} (tus entradas ya compradas no cambian).");
+                    var titulo = cambioProgramacion ? $"Cambios en {existing.Nombre}" : $"Actualización de {existing.Nombre}";
+                    var mensaje = $"El organizador actualizó \"{existing.Nombre}\". " + string.Join(" ", cambios);
+                    var compradores = await _avisos.CompradoresValidosAsync(existing.EventoId);
+                    await _avisos.AvisarAsync(existing.EventoId, compradores, titulo, mensaje);
                 }
             }
 
@@ -209,11 +226,24 @@ namespace EventosPeruIA.CORE.Core.Services
             if (descripcion.Length > 500)
                 throw new ValidationException("La descripción no puede superar los 500 caracteres.");
 
+            // Se leen antes de cancelar: la cancelación anula las entradas y ya no aparecerían como válidas.
+            var evento = await _eventoRepository.GetEventoByIdAsync(id);
+            var compradores = await _avisos.CompradoresValidosAsync(id);
+            var inicioCancelacion = DateTime.UtcNow.AddSeconds(-5);
+
             await _eventoRepository.CancelarEventoEnBaseAsync(
                 id,
                 userId,
                 dto.MotivoCancelacionId,
                 descripcion);
+
+            var nombre = evento?.Nombre ?? "el evento";
+            await _avisos.AvisarAsync(
+                id,
+                compradores,
+                $"Evento cancelado: {nombre}",
+                $"\"{nombre}\" fue cancelado por el organizador. Motivo: {descripcion} Tus entradas quedan anuladas y se marcarán para reembolso.",
+                omitirPantallaSiAvisadosDesde: inicioCancelacion);
 
             return true;
         }

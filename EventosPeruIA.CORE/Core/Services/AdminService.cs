@@ -4,7 +4,7 @@ using EventosPeruIA.CORE.Core.Interfaces;
 
 namespace EventosPeruIA.CORE.Core.Services;
 
-public sealed class AdminService(IAdminRepository repository, TimeProvider clock) : IAdminService
+public sealed class AdminService(IAdminRepository repository, TimeProvider clock, IAvisoEventoService avisos) : IAdminService
 {
     public async Task<PaginaDTO<UsuarioAdminDTO>> Usuarios(string? buscar, string? estado, int pagina, int tamano, CancellationToken ct)
     {
@@ -45,6 +45,11 @@ public sealed class AdminService(IAdminRepository repository, TimeProvider clock
         auditoria.EstadoAnterior = anterior;
         auditoria.EstadoNuevo = estado;
         await repository.Guardar(auditoria, ct);
+
+        var accion = dto.Accion == "Retirar" ? "retirado de la plataforma" : "suspendido temporalmente";
+        await avisos.AvisarAsync(id, new[] { evento.OrganizadorId },
+            $"Tu evento fue {(dto.Accion == "Retirar" ? "retirado" : "suspendido")}",
+            $"Un administrador ha {accion} \"{evento.Nombre}\". Motivo: {dto.Motivo.Trim()}", ct: ct);
     }
     private static void Confirmar(bool confirmado, string motivo)
     {
