@@ -1,142 +1,103 @@
-﻿using EventosPeruIA.CORE.Core.DTOs.Reportes;
+﻿using System.Data;
+using EventosPeruIA.CORE.Core.DTOs.Reportes;
 using EventosPeruIA.CORE.Core.Interfaces;
 using EventosPeruIA.CORE.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using NpgsqlTypes;
 
-namespace EventosPeruIA.CORE.Infrastructure.Repositories
+namespace EventosPeruIA.CORE.Infrastructure.Repositories;
+
+public class ReporteRepository(PostgresContext context) : IReporteRepository
 {
-    public class ReporteRepository : IReporteRepository
+    private static readonly TimeZoneInfo ZonaLima =
+        TimeZoneInfo.FindSystemTimeZoneById("America/Lima");
+
+    public async Task<DatosReporteRaw> ObtenerDatosAsync(
+        int organizadorId, ReporteFiltroRequestDto filtro)
     {
-        private readonly PostgresContext _context;
+        var eventoId = filtro.EventoId;
+        DateTime? inicioUtc = filtro.FechaInicio is { } inicio
+            ? MedianocheLimaUtc(inicio)
+            : null;
+        DateTime? finExclusivoUtc = filtro.FechaFin is { } fin && fin < DateOnly.MaxValue
+            ? MedianocheLimaUtc(fin.AddDays(1))
+            : null;
 
-        public ReporteRepository(PostgresContext context)
+        await using var transaccion =
+            await context.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead);
+
+        var eventos = await context.VwVentasPorEvento.AsNoTracking()
+            .Where(v => v.OrganizadorId == organizadorId && v.EventoId.HasValue)
+            .Where(v => !eventoId.HasValue || v.EventoId == eventoId)
+            .OrderBy(v => v.NombreEvento)
+            .ThenBy(v => v.EventoId)
+            .Select(v => new DatosVentaEventoRaw
+            {
+                EventoId = v.EventoId!.Value,
+                NombreEvento = v.NombreEvento ?? string.Empty,
+                EstadoEvento = v.Estado ?? string.Empty,
+                EntradasDisponibles = v.EntradasDisponibles ?? 0
+            })
+            .ToListAsync();
+
+        if (eventos.Count == 0)
         {
-            _context = context;
+            await transaccion.CommitAsync();
+            return new DatosReporteRaw(eventos, []);
         }
 
-        public async Task<bool> EsOrganizadorDelEventoAsync(int organizadorId, int eventoId)
+        var filtroEvento = new NpgsqlParameter("reporte_evento", NpgsqlDbType.Integer)
         {
-            return await _context.Eventos
-                .AsNoTracking()
-                .AnyAsync(e => e.OrganizadorId == organizadorId && e.EventoId == eventoId);
-        }
-
-        public async Task<List<DatosVentaEventoRaw>> GetVentasEventoRawAsync(int organizadorId, int? eventoId)
+            Value = (object?)eventoId ?? DBNull.Value
+        };
+        var filtroInicio = new NpgsqlParameter("reporte_inicio", NpgsqlDbType.TimestampTz)
         {
-            var query = _context.VwVentasPorEvento
-                .AsNoTracking()
-                .Where(v => v.OrganizadorId == organizadorId);
-
-            if (eventoId.HasValue)
-            {
-                query = query.Where(v => v.EventoId == eventoId.Value);
-            }
-
-            return await query
-                .Where(v => v.EventoId.HasValue)
-                .Select(v => new DatosVentaEventoRaw
-                {
-                    EventoId = v.EventoId!.Value,
-                    NombreEvento = v.NombreEvento ?? string.Empty,
-                    EntradasDisponibles = v.EntradasDisponibles ?? 0
-                })
-                .ToListAsync();
-        }
-
-        public async Task<List<DatosAsistenciaRaw>> GetAsistentesRawAsync(int organizadorId, int? eventoId, DateTime? fechaInicio, DateTime? fechaFin)
+            Value = (object?)inicioUtc ?? DBNull.Value
+        };
+        var filtroFin = new NpgsqlParameter("reporte_fin", NpgsqlDbType.TimestampTz)
         {
-            var query = _context.VwAsistentesEvento
-                .AsNoTracking()
-                .Where(a => a.OrganizadorId == organizadorId);
+            Value = (object?)finExclusivoUtc ?? DBNull.Value
+        };
 
-            if (eventoId.HasValue)
-                query = query.Where(a => a.EventoId == eventoId.Value);
+        var ventas = await context.Database.SqlQuery<DatosVentaDiariaRaw>($"""
+            SELECT t.evento_id AS "EventoId",
+                   (t.fecha_emision AT TIME ZONE 'America/Lima')::date AS "Fecha",
+                   btrim(c.moneda) AS "Moneda",
+                   (count(*) FILTER (WHERE t.estado = 'Valida'))::integer AS "EntradasValidas",
+                   (count(*) FILTER (WHERE t.estado = 'Utilizada'))::integer AS "EntradasUtilizadas",
+                   (count(*) FILTER (WHERE t.estado = 'Anulada'))::integer AS "EntradasAnuladas",
+                   (count(*) FILTER (
+                       WHERE t.estado = 'Anulada'
+                         AND t.estado_reembolso = 'PendienteReembolso'
+                         AND t.precio_pagado > 0
+                   ))::integer AS "EntradasPendientesReembolso",
+                   coalesce(sum(t.precio_pagado) FILTER (
+                       WHERE t.estado IN ('Valida', 'Utilizada')
+                   ), 0) AS "Ingresos",
+                   coalesce(sum(t.precio_pagado) FILTER (
+                       WHERE t.estado = 'Anulada'
+                         AND t.estado_reembolso = 'PendienteReembolso'
+                         AND t.precio_pagado > 0
+                   ), 0) AS "MontoPendienteReembolso"
+            FROM public.entradas t
+            JOIN public.eventos e ON e.evento_id = t.evento_id
+            JOIN public.compras c ON c.compra_id = t.compra_id
+            CROSS JOIN (
+                SELECT {filtroEvento} AS evento_id, {filtroInicio} AS inicio_utc,
+                       {filtroFin} AS fin_utc
+            ) filtro
+            WHERE e.organizador_id = {organizadorId}
+              AND (filtro.evento_id IS NULL OR t.evento_id = filtro.evento_id)
+              AND (filtro.inicio_utc IS NULL OR t.fecha_emision >= filtro.inicio_utc)
+              AND (filtro.fin_utc IS NULL OR t.fecha_emision < filtro.fin_utc)
+            GROUP BY 1, 2, 3
+            """).ToListAsync();
 
-            // FIX: Convertir a UTC para compatibilidad con timestamptz en PostgreSQL
-            if (fechaInicio.HasValue)
-            {
-                var inicioUtc = DateTime.SpecifyKind(fechaInicio.Value, DateTimeKind.Utc);
-                query = query.Where(a => a.FechaEmision >= inicioUtc);
-            }
-
-            if (fechaFin.HasValue)
-            {
-                var finUtc = DateTime.SpecifyKind(fechaFin.Value, DateTimeKind.Utc);
-                query = query.Where(a => a.FechaEmision <= finUtc);
-            }
-
-            return await query
-                .Where(a => a.EventoId.HasValue)
-                .Select(a => new DatosAsistenciaRaw
-                {
-                    EventoId = a.EventoId!.Value,
-                    Estado = a.Estado ?? string.Empty,
-                    FechaEmision = a.FechaEmision ?? DateTime.MinValue
-                })
-                .ToListAsync();
-        }
-
-        public async Task<List<DatosVentaDiariaRaw>> GetVentasDiariasRawAsync(int organizadorId, int? eventoId, DateTime? fechaInicio, DateTime? fechaFin)
-        {
-            var query = _context.VwVentasPorFecha
-                .AsNoTracking()
-                .Where(v => v.OrganizadorId == organizadorId);
-
-            if (eventoId.HasValue)
-                query = query.Where(v => v.EventoId == eventoId.Value);
-
-            if (fechaInicio.HasValue)
-            {
-                var startDate = DateOnly.FromDateTime(fechaInicio.Value);
-                query = query.Where(v => v.Fecha >= startDate);
-            }
-
-            if (fechaFin.HasValue)
-            {
-                var endDate = DateOnly.FromDateTime(fechaFin.Value);
-                query = query.Where(v => v.Fecha <= endDate);
-            }
-
-            return await query
-                .Where(v => v.EventoId.HasValue && v.Fecha.HasValue)
-                .Select(v => new DatosVentaDiariaRaw
-                {
-                    EventoId = v.EventoId!.Value,
-                    Fecha = v.Fecha!.Value,
-                    EntradasVendidas = v.EntradasVendidasEseDia ?? 0,
-                    Ingresos = v.IngresosEseDia ?? 0m
-                })
-                .ToListAsync();
-        }
-
-        public async Task<List<DatosReembolsoRaw>> GetReembolsosRawAsync(int organizadorId, int? eventoId, DateTime? fechaInicio, DateTime? fechaFin)
-        {
-            var query = _context.Entradas
-                .AsNoTracking()
-                .Where(e => e.Evento.OrganizadorId == organizadorId && e.EstadoReembolso == "PendienteReembolso");
-
-            if (eventoId.HasValue)
-                query = query.Where(e => e.EventoId == eventoId.Value);
-
-            // FIX: Convertir a UTC para compatibilidad con timestamptz en PostgreSQL
-            if (fechaInicio.HasValue)
-            {
-                var inicioUtc = DateTime.SpecifyKind(fechaInicio.Value, DateTimeKind.Utc);
-                query = query.Where(e => e.FechaEmision >= inicioUtc);
-            }
-
-            if (fechaFin.HasValue)
-            {
-                var finUtc = DateTime.SpecifyKind(fechaFin.Value, DateTimeKind.Utc);
-                query = query.Where(e => e.FechaEmision <= finUtc);
-            }
-
-            return await query.Select(e => new DatosReembolsoRaw
-            {
-                EventoId = e.EventoId,
-                PrecioPagado = e.PrecioPagado,
-                FechaEmision = e.FechaEmision
-            }).ToListAsync();
-        }
+        await transaccion.CommitAsync();
+        return new DatosReporteRaw(eventos, ventas);
     }
+
+    private static DateTime MedianocheLimaUtc(DateOnly fecha) =>
+        TimeZoneInfo.ConvertTimeToUtc(fecha.ToDateTime(TimeOnly.MinValue), ZonaLima);
 }

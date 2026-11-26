@@ -41,6 +41,7 @@ builder.Services.AddScoped<IAccountRepository, AccountRepository>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IReporteRepository, ReporteRepository>();
 builder.Services.AddScoped<IReporteService, ReporteService>();
+builder.Services.AddSingleton<ReporteOrganizadorCache>();
 // Inyección de dependencias para el módulo de Entradas
 builder.Services.AddScoped<IEntradaRepository, EntradaRepository>();
 builder.Services.AddScoped<IEntradaService, EntradaService>();
